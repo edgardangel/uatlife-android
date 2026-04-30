@@ -1,0 +1,517 @@
+package com.uat.uatlife.ui.screens
+
+import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.uat.uatlife.data.TokenManager
+import com.uat.uatlife.network.RetrofitClient
+import com.uat.uatlife.network.models.CrearPublicacionRequest
+import com.uat.uatlife.network.models.Publicacion
+import com.uat.uatlife.network.models.ReaccionRequest
+import com.uat.uatlife.ui.theme.*
+import kotlinx.coroutines.launch
+
+/**
+ * Pantalla principal - Feed de publicaciones conectado a la API real.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val tokenManager = remember { TokenManager(context) }
+    val apiService = remember { RetrofitClient.getApiService(context) }
+    val userType by tokenManager.getUserType().collectAsState(initial = "alumno")
+
+    // Estados del Feed
+    val publicaciones = remember { mutableStateListOf<Publicacion>() }
+    var isLoadingFeed by remember { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    // Estados de búsqueda
+    var isSearching by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    val recentSearches = remember { mutableStateListOf("Venta de libros", "Tutorías cálculo", "Eventos FADU") }
+
+    // Estado del diálogo de crear publicación
+    var showCreateDialog by remember { mutableStateOf(false) }
+    var nuevoTexto by remember { mutableStateOf("") }
+    var isPosting by remember { mutableStateOf(false) }
+
+    // --- Función para cargar el feed ---
+    fun cargarFeed() {
+        scope.launch {
+            isRefreshing = true
+            errorMsg = null
+            try {
+                val response = apiService.getPublicaciones()
+                if (response.isSuccessful) {
+                    val lista = response.body() ?: emptyList()
+                    publicaciones.clear()
+                    publicaciones.addAll(lista)
+                } else {
+                    errorMsg = "No se pudo cargar el feed"
+                }
+            } catch (e: Exception) {
+                errorMsg = "Sin conexión. Verifica tu red."
+            } finally {
+                isLoadingFeed = false
+                isRefreshing = false
+            }
+        }
+    }
+
+    // Cargar al entrar
+    LaunchedEffect(Unit) { cargarFeed() }
+
+    // Publicaciones filtradas por búsqueda
+    val publicacionesFiltradas = if (searchQuery.isBlank()) {
+        publicaciones
+    } else {
+        publicaciones.filter {
+            it.contenidoTexto?.contains(searchQuery, ignoreCase = true) == true ||
+            it.autorNombre.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    // --- Diálogo Crear Publicación ---
+    if (showCreateDialog) {
+        AlertDialog(
+            onDismissRequest = { showCreateDialog = false; nuevoTexto = "" },
+            title = { Text("Nueva Publicación", fontWeight = FontWeight.Bold, color = UATBlueDark) },
+            text = {
+                OutlinedTextField(
+                    value = nuevoTexto,
+                    onValueChange = { nuevoTexto = it },
+                    placeholder = { Text("¿Qué está pasando en el campus?") },
+                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = UATOrange,
+                        unfocusedBorderColor = UATBlueLight.copy(alpha = 0.4f),
+                        focusedLabelColor = UATOrange
+                    ),
+                    maxLines = 5
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (nuevoTexto.isBlank()) return@Button
+                        isPosting = true
+                        scope.launch {
+                            try {
+                                val response = apiService.crearPublicacion(
+                                    CrearPublicacionRequest(contenidoTexto = nuevoTexto.trim())
+                                )
+                                if (response.isSuccessful) {
+                                    showCreateDialog = false
+                                    nuevoTexto = ""
+                                    cargarFeed()
+                                } else {
+                                    Toast.makeText(context, "Error al publicar", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Sin conexión", Toast.LENGTH_SHORT).show()
+                            } finally {
+                                isPosting = false
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = UATOrange),
+                    enabled = !isPosting
+                ) {
+                    if (isPosting) CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                    else Text("Publicar", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateDialog = false; nuevoTexto = "" }) {
+                    Text("Cancelar", color = UATBlueDark)
+                }
+            }
+        )
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(UATSurfaceLight)
+    ) {
+        // ── Top Bar ──────────────────────────────────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(UATBlue)
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isSearching) {
+                TextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Buscar publicación...", color = Color.White.copy(alpha = 0.7f)) },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Color.White,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Cerrar búsqueda",
+                    tint = UATOnPrimaryLight,
+                    modifier = Modifier.size(28.dp).clip(CircleShape).clickable {
+                        isSearching = false
+                        searchQuery = ""
+                    }
+                )
+            } else {
+                Text(
+                    text = "UATLife",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = UATOnPrimaryLight,
+                    modifier = Modifier.weight(1f)
+                )
+                // Refrescar
+                IconButton(onClick = { cargarFeed() }, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Filled.Refresh, contentDescription = "Actualizar", tint = UATOnPrimaryLight, modifier = Modifier.size(22.dp))
+                }
+                // Buscar
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = "Buscar",
+                    tint = UATOnPrimaryLight,
+                    modifier = Modifier.size(28.dp).clip(CircleShape).clickable { isSearching = true }
+                )
+            }
+        }
+
+        // ── Contenido del Feed ───────────────────────────────────
+        when {
+            // Modo búsqueda con historial
+            isSearching && searchQuery.isBlank() -> {
+                LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    item {
+                        Text("Búsquedas recientes", fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                            color = UATBlueDark, modifier = Modifier.padding(bottom = 8.dp))
+                    }
+                    items(recentSearches) { search ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable { searchQuery = search }.padding(vertical = 8.dp)
+                        ) {
+                            Icon(Icons.Filled.History, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(search, fontSize = 15.sp, color = Color.DarkGray, modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+
+            // Cargando
+            isLoadingFeed -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = UATOrange, modifier = Modifier.size(48.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Cargando publicaciones...", color = UATBlueDark.copy(alpha = 0.6f), fontSize = 14.sp)
+                    }
+                }
+            }
+
+            // Error de red
+            errorMsg != null && publicaciones.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                        Icon(Icons.Filled.WifiOff, null, tint = UATBlueLight, modifier = Modifier.size(56.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(errorMsg!!, color = UATBlueDark, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { cargarFeed() }, colors = ButtonDefaults.buttonColors(containerColor = UATOrange)) {
+                            Text("Reintentar", color = Color.White)
+                        }
+                    }
+                }
+            }
+
+            // Feed principal (con o sin búsqueda activa)
+            else -> {
+                LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+                    // Caja Crear Publicación
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable { showCreateDialog = true },
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(40.dp).clip(CircleShape).background(UATBlueLight),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Filled.Person, null, tint = UATOnPrimaryLight, modifier = Modifier.size(24.dp))
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Box(
+                                    modifier = Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(22.dp)).background(UATSurfaceLight),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Text("¿Qué está pasando en el campus?",
+                                        color = UATBlueLight.copy(alpha = 0.8f), fontSize = 14.sp,
+                                        modifier = Modifier.padding(horizontal = 16.dp))
+                                }
+                            }
+                        }
+                    }
+
+                    // Título de sección
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Muro UATLife", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = UATBlueDark)
+                            if (isRefreshing) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = UATOrange, strokeWidth = 2.dp)
+                            }
+                        }
+                    }
+
+                    // Sin resultados en búsqueda
+                    if (publicacionesFiltradas.isEmpty() && searchQuery.isNotBlank()) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                Text("No hay publicaciones que coincidan con \"$searchQuery\"",
+                                    color = Color.Gray, fontSize = 14.sp)
+                            }
+                        }
+                    }
+
+                    // Feed vacío (sin publicaciones en la BD aún)
+                    if (publicaciones.isEmpty() && !isLoadingFeed) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Filled.DynamicFeed, null, tint = UATBlueLight, modifier = Modifier.size(48.dp))
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("Aún no hay publicaciones.\n¡Sé el primero en publicar!",
+                                        color = Color.Gray, fontSize = 14.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    // Tarjetas del Feed
+                    items(publicacionesFiltradas, key = { it.id }) { pub ->
+                        PostCard(
+                            publicacion = pub,
+                            esModerador = userType == "moderador",
+                            onReaccion = {
+                                scope.launch {
+                                    try {
+                                        apiService.reaccionar(pub.id, ReaccionRequest("like"))
+                                        // Actualizar contador localmente para feedback inmediato
+                                        val idx = publicaciones.indexOfFirst { it.id == pub.id }
+                                        if (idx >= 0) {
+                                            val updated = publicaciones[idx].copy(
+                                                totalReacciones = publicaciones[idx].totalReacciones + 1
+                                            )
+                                            publicaciones[idx] = updated
+                                        }
+                                    } catch (e: Exception) { /* Silencioso */ }
+                                }
+                            },
+                            onEliminar = {
+                                scope.launch {
+                                    try {
+                                        val resp = apiService.eliminarPublicacion(pub.id)
+                                        if (resp.isSuccessful) {
+                                            publicaciones.remove(pub)
+                                            Toast.makeText(context, "Publicación eliminada", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error al eliminar", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        )
+                    }
+
+                    item { Spacer(modifier = Modifier.height(80.dp)) }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Tarjeta de publicación individual con datos reales de la API.
+ */
+@Composable
+private fun PostCard(
+    publicacion: Publicacion,
+    esModerador: Boolean,
+    onReaccion: () -> Unit,
+    onEliminar: () -> Unit
+) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("¿Eliminar publicación?", fontWeight = FontWeight.Bold) },
+            text = { Text("Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(onClick = { showDeleteConfirm = false; onEliminar() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48))) {
+                    Text("Eliminar", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.size(40.dp).clip(CircleShape).background(UATBlueLight),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.Person, null, tint = UATOnPrimaryLight, modifier = Modifier.size(24.dp))
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(publicacion.autorNombre, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = UATBlueDark)
+                        if (publicacion.autorTipo == "moderador") {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Filled.Security, null, tint = UATOrange, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                    Text(
+                        text = "${publicacion.autorFacultad ?: ""} • ${formatFecha(publicacion.fechaCreacion)}",
+                        fontSize = 11.sp,
+                        color = UATBlueLight.copy(alpha = 0.7f)
+                    )
+                }
+                // Botón Eliminar (solo moderadores)
+                if (esModerador) {
+                    IconButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Filled.Delete, "Eliminar", tint = Color(0xFFE11D48), modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Contenido
+            if (!publicacion.contenidoTexto.isNullOrBlank()) {
+                Text(publicacion.contenidoTexto, fontSize = 14.sp, lineHeight = 20.sp, color = UATBlueDark)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Contadores
+            if (publicacion.totalReacciones > 0 || publicacion.totalComentarios > 0) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    if (publicacion.totalReacciones > 0) {
+                        Text("${publicacion.totalReacciones} me gusta", fontSize = 12.sp, color = Color.Gray)
+                    }
+                    if (publicacion.totalComentarios > 0) {
+                        Text("${publicacion.totalComentarios} comentarios", fontSize = 12.sp, color = Color.Gray)
+                    }
+                }
+                Divider(color = Color(0xFFE5E7EB))
+            }
+
+            // Acciones
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceAround) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { onReaccion() }.padding(8.dp)
+                ) {
+                    Icon(
+                        if (publicacion.miReaccion != null) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        "Me gusta",
+                        tint = if (publicacion.miReaccion != null) UATOrange else UATBlueLight,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Me gusta", fontSize = 12.sp, color = if (publicacion.miReaccion != null) UATOrange else UATBlueLight)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
+                    Icon(Icons.Filled.ChatBubbleOutline, "Comentar", tint = UATBlueLight, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Comentar", fontSize = 12.sp, color = UATBlueLight)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
+                    Icon(Icons.Filled.Share, "Compartir", tint = UATBlueLight, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Compartir", fontSize = 12.sp, color = UATBlueLight)
+                }
+            }
+        }
+    }
+}
+
+/** Formatea una fecha ISO a texto relativo legible */
+private fun formatFecha(fechaIso: String): String {
+    return try {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault())
+        sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        val date = sdf.parse(fechaIso) ?: return fechaIso
+        val diff = System.currentTimeMillis() - date.time
+        val mins = diff / 60000
+        val hours = mins / 60
+        val days = hours / 24
+        when {
+            mins < 1 -> "Justo ahora"
+            mins < 60 -> "Hace $mins min"
+            hours < 24 -> "Hace $hours h"
+            days == 1L -> "Ayer"
+            days < 7 -> "Hace $days días"
+            else -> java.text.SimpleDateFormat("dd MMM", java.util.Locale("es")).format(date)
+        }
+    } catch (e: Exception) { fechaIso }
+}

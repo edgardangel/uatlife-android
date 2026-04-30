@@ -1,0 +1,93 @@
+package com.uat.uatlife.data
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+// Extensión para crear el DataStore una sola vez por Context
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "uatlife_prefs")
+
+/**
+ * Maneja la persistencia segura del token JWT y datos de sesión
+ * usando Jetpack DataStore (reemplazo moderno de SharedPreferences).
+ */
+class TokenManager(private val context: Context) {
+
+    companion object {
+        private val TOKEN_KEY = stringPreferencesKey("jwt_token")
+        private val USER_NAME_KEY = stringPreferencesKey("user_name")
+        private val USER_MATRICULA_KEY = stringPreferencesKey("user_matricula")
+        private val USER_TYPE_KEY = stringPreferencesKey("user_type")
+    }
+
+    /**
+     * Obtiene el token JWT guardado (o null si no hay sesión).
+     */
+    fun getToken(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[TOKEN_KEY]
+        }
+    }
+
+    /**
+     * Guarda el token JWT y datos básicos del usuario.
+     */
+    suspend fun saveSession(token: String, nombre: String, matricula: String, tipoUsuario: String) {
+        context.dataStore.edit { preferences ->
+            preferences[TOKEN_KEY] = token
+            preferences[USER_NAME_KEY] = nombre
+            preferences[USER_MATRICULA_KEY] = matricula
+            preferences[USER_TYPE_KEY] = tipoUsuario
+        }
+    }
+
+    /**
+     * Obtiene el nombre del usuario guardado.
+     */
+    fun getUserName(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[USER_NAME_KEY]
+        }
+    }
+
+    /**
+     * Obtiene la matrícula guardada.
+     */
+    fun getUserMatricula(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[USER_MATRICULA_KEY]
+        }
+    }
+
+    /**
+     * Obtiene el tipo de usuario (ej. "alumno" o "moderador").
+     */
+    fun getUserType(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[USER_TYPE_KEY]
+        }
+    }
+
+    /**
+     * Cambia el tipo de usuario en caliente (Para habilitar el Panel de Moderador desde settings).
+     */
+    suspend fun setUserType(tipoUsuario: String) {
+        context.dataStore.edit { preferences ->
+            preferences[USER_TYPE_KEY] = tipoUsuario
+        }
+    }
+
+    /**
+     * Cierra la sesión eliminando todos los datos guardados.
+     */
+    suspend fun clearSession() {
+        context.dataStore.edit { preferences ->
+            preferences.clear()
+        }
+    }
+}
