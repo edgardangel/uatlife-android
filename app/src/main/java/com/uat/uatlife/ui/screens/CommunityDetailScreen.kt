@@ -53,8 +53,10 @@ fun CommunityDetailScreen(
 
     var comunidad by remember { mutableStateOf<Comunidad?>(null) }
     var publicaciones = remember { mutableStateListOf<Publicacion>() }
+    var miembros = remember { mutableStateListOf<MiembroComunidad>() }
     var isLoading by remember { mutableStateOf(true) }
     var isPostsLoading by remember { mutableStateOf(true) }
+    var isMembersLoading by remember { mutableStateOf(true) }
     var showLeaveDialog by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(0) }
     var showCommentsForPostId by remember { mutableStateOf<Int?>(null) }
@@ -79,10 +81,17 @@ fun CommunityDetailScreen(
                     publicaciones.clear()
                     publicaciones.addAll(respP.body() ?: emptyList())
                 }
+
+                val respM = apiService.getMiembros(communityId)
+                if (respM.isSuccessful) {
+                    miembros.clear()
+                    miembros.addAll(respM.body() ?: emptyList())
+                }
             } catch (e: Exception) {}
             finally { 
                 isLoading = false
                 isPostsLoading = false
+                isMembersLoading = false
             }
         }
     }
@@ -346,6 +355,49 @@ fun CommunityDetailScreen(
                             }
                         )
                     }
+                }
+            }
+        }
+
+        // --- MIEMBROS ---
+        if (selectedTab == 1) {
+            if (isMembersLoading) {
+                item { Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = UATOrange) } }
+            } else if (miembros.isEmpty()) {
+                item { Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { Text("Aún no hay miembros registrados.", color = Color.Gray, fontSize = 14.sp) } }
+            } else {
+                items(miembros) { miembro ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier.size(44.dp).clip(CircleShape).background(UATBlueLight),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (miembro.foto != null) {
+                                AsyncImage(model = RetrofitClient.BASE_URL + miembro.foto, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                            } else {
+                                Icon(Icons.Filled.Person, null, tint = Color.White)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(miembro.nombre, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = UATBlueDark)
+                            Text("${miembro.facultad ?: ""} • ${miembro.tipo.replaceFirstChar { it.uppercase() }}", fontSize = 12.sp, color = Color.Gray)
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- INFO ---
+        if (selectedTab == 2) {
+            item {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Acerca de esta comunidad", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = UATBlueDark)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(comunidad?.descripcion ?: "Sin descripción disponible.", fontSize = 14.sp, color = Color.DarkGray)
                 }
             }
         }

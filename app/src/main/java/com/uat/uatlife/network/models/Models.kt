@@ -257,3 +257,10 @@ data class TopEmprendedor(
 
 data class ErrorResponse(val error: String)
 data class ApiInfoResponse(val mensaje: String, val version: String)
+data class MiembroComunidad(
+    val id: Int,
+    val nombre: String,
+    val foto: String?,
+    val tipo: String,
+    val facultad: String?
+)

@@ -154,6 +154,9 @@ interface ApiService {
     @GET("api/comunidades/{id}")
     suspend fun getComunidadById(@Path("id") id: Int): Response<Comunidad>
 
+    @GET("api/comunidades/{id}/miembros")
+    suspend fun getMiembros(@Path("id") id: Int): Response<List<MiembroComunidad>>
+
     @POST("api/comunidades")
     suspend fun crearComunidad(@Body request: CrearComunidadRequest): Response<CrearComunidadResponse>
 
