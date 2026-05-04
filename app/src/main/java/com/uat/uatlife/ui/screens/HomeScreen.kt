@@ -51,10 +51,12 @@ fun HomeScreen() {
     var searchQuery by remember { mutableStateOf("") }
     val recentSearches = remember { mutableStateListOf("Venta de libros", "Tutorías cálculo", "Eventos FADU") }
 
-    // Estado del diálogo de crear publicación
     var showCreateDialog by remember { mutableStateOf(false) }
     var nuevoTexto by remember { mutableStateOf("") }
     var isPosting by remember { mutableStateOf(false) }
+
+    // Estado para comentarios
+    var showCommentsForPostId by remember { mutableStateOf<Int?>(null) }
 
     // --- Función para cargar el feed ---
     fun cargarFeed() {
@@ -351,6 +353,9 @@ fun HomeScreen() {
                                     } catch (e: Exception) { /* Silencioso */ }
                                 }
                             },
+                            onComentar = {
+                                showCommentsForPostId = pub.id
+                            },
                             onEliminar = {
                                 scope.launch {
                                     try {
@@ -367,9 +372,26 @@ fun HomeScreen() {
                         )
                     }
 
-                    item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
             }
+        }
+
+        // --- BottomSheet de Comentarios ---
+        if (showCommentsForPostId != null) {
+            CommentsBottomSheet(
+                postId = showCommentsForPostId!!,
+                apiService = apiService,
+                onDismiss = { showCommentsForPostId = null },
+                onCommentAdded = {
+                    // Actualizar contador local
+                    val idx = publicaciones.indexOfFirst { it.id == showCommentsForPostId }
+                    if (idx >= 0) {
+                        publicaciones[idx] = publicaciones[idx].copy(
+                            totalComentarios = publicaciones[idx].totalComentarios + 1
+                        )
+                    }
+                }
+            )
         }
     }
 }
@@ -382,6 +404,7 @@ private fun PostCard(
     publicacion: Publicacion,
     esModerador: Boolean,
     onReaccion: () -> Unit,
+    onComentar: () -> Unit,
     onEliminar: () -> Unit
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -480,7 +503,10 @@ private fun PostCard(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Me gusta", fontSize = 12.sp, color = if (publicacion.miReaccion != null) UATOrange else UATBlueLight)
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { onComentar() }.padding(8.dp)
+                ) {
                     Icon(Icons.Filled.ChatBubbleOutline, "Comentar", tint = UATBlueLight, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Comentar", fontSize = 12.sp, color = UATBlueLight)
@@ -514,4 +540,109 @@ private fun formatFecha(fechaIso: String): String {
             else -> java.text.SimpleDateFormat("dd MMM", java.util.Locale("es")).format(date)
         }
     } catch (e: Exception) { fechaIso }
+}
+
+/**
+ * BottomSheet para ver y agregar comentarios.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CommentsBottomSheet(
+    postId: Int,
+    apiService: com.uat.uatlife.network.ApiService,
+    onDismiss: () -> Unit,
+    onCommentAdded: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val comments = remember { mutableStateListOf<com.uat.uatlife.network.models.Comentario>() }
+    var isLoading by remember { mutableStateOf(true) }
+    var nuevoComentario by remember { mutableStateOf("") }
+    var isPosting by remember { mutableStateOf(false) }
+
+    LaunchedEffect(postId) {
+        try {
+            val resp = apiService.getComentarios(postId)
+            if (resp.isSuccessful) {
+                comments.clear()
+                comments.addAll(resp.body() ?: emptyList())
+            }
+        } catch (e: Exception) {}
+        finally { isLoading = false }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White,
+        tonalElevation = 8.dp
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().heightIn(min = 300.dp, max = 600.dp).padding(16.dp)) {
+            Text("Comentarios", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = UATBlueDark)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (isLoading) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = UATOrange)
+                }
+            } else if (comments.isEmpty()) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("Aún no hay comentarios. ¡Sé el primero!", color = Color.Gray, fontSize = 14.sp)
+                }
+            } else {
+                LazyColumn(modifier = Modifier.weight(1f)) {
+                    items(comments) { com ->
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                            Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(UATBlueLight), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Filled.Person, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(com.autorNombre, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = UATBlueDark)
+                                Text(com.contenido, fontSize = 14.sp, color = Color.Black)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Divider()
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = nuevoComentario,
+                    onValueChange = { nuevoComentario = it },
+                    placeholder = { Text("Escribe un comentario...") },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(24.dp),
+                    maxLines = 3,
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = UATOrange)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        if (nuevoComentario.isBlank()) return@IconButton
+                        isPosting = true
+                        scope.launch {
+                            try {
+                                val resp = apiService.comentar(postId, com.uat.uatlife.network.models.ComentarRequest(nuevoComentario.trim()))
+                                if (resp.isSuccessful) {
+                                    val created = resp.body()
+                                    if (created != null) comments.add(created)
+                                    nuevoComentario = ""
+                                    onCommentAdded()
+                                }
+                            } catch (e: Exception) {}
+                            finally { isPosting = false }
+                        }
+                    },
+                    enabled = !isPosting
+                ) {
+                    if (isPosting) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = UATOrange)
+                    else Icon(Icons.Filled.Send, contentDescription = "Enviar", tint = UATOrange)
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
 }
