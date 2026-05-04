@@ -53,6 +53,7 @@ fun HomeScreen() {
 
     var showCreateDialog by remember { mutableStateOf(false) }
     var nuevoTexto by remember { mutableStateOf("") }
+    var selectedImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var isPosting by remember { mutableStateOf(false) }
 
     // Estado para comentarios
@@ -94,44 +95,86 @@ fun HomeScreen() {
         }
     }
 
-    // --- Diálogo Crear Publicación ---
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        if (uri != null) selectedImageUri = uri
+    }
+
     if (showCreateDialog) {
         AlertDialog(
-            onDismissRequest = { showCreateDialog = false; nuevoTexto = "" },
+            onDismissRequest = { showCreateDialog = false; nuevoTexto = ""; selectedImageUri = null },
             title = { Text("Nueva Publicación", fontWeight = FontWeight.Bold, color = UATBlueDark) },
             text = {
-                OutlinedTextField(
-                    value = nuevoTexto,
-                    onValueChange = { nuevoTexto = it },
-                    placeholder = { Text("¿Qué está pasando en el campus?") },
-                    modifier = Modifier.fillMaxWidth().height(120.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = UATOrange,
-                        unfocusedBorderColor = UATBlueLight.copy(alpha = 0.4f),
-                        focusedLabelColor = UATOrange
-                    ),
-                    maxLines = 5
-                )
+                Column {
+                    OutlinedTextField(
+                        value = nuevoTexto,
+                        onValueChange = { nuevoTexto = it },
+                        placeholder = { Text("¿Qué está pasando en el campus?") },
+                        modifier = Modifier.fillMaxWidth().height(120.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = UATOrange,
+                            unfocusedBorderColor = UATBlueLight.copy(alpha = 0.4f)
+                        ),
+                        maxLines = 5
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Vista previa de imagen seleccionada
+                    if (selectedImageUri != null) {
+                        Box(modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(8.dp))) {
+                            AsyncImage(
+                                model = selectedImageUri,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                            IconButton(
+                                onClick = { selectedImageUri = null },
+                                modifier = Modifier.align(Alignment.TopEnd).background(Color.Black.copy(0.5f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Close, null, tint = Color.White)
+                            }
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { imagePickerLauncher.launch("image/*") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, UATBlueLight.copy(0.3f))
+                        ) {
+                            Icon(Icons.Default.Image, null, tint = UATOrange)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Agregar Foto", color = UATBlueDark)
+                        }
+                    }
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        if (nuevoTexto.isBlank()) return@Button
+                        if (nuevoTexto.isBlank() && selectedImageUri == null) return@Button
                         isPosting = true
                         scope.launch {
                             try {
+                                val textBody = nuevoTexto.trim().toRequestBody("text/plain".toMediaTypeOrNull())
+                                val imagePart = if (selectedImageUri != null) {
+                                    com.uat.uatlife.utils.ImageUtils.uriToMultipart(context, selectedImageUri!!, "imagen")
+                                } else null
+
                                 val response = apiService.crearPublicacion(
-                                    CrearPublicacionRequest(contenidoTexto = nuevoTexto.trim())
+                                    textBody, null, imagePart
                                 )
                                 if (response.isSuccessful) {
                                     showCreateDialog = false
                                     nuevoTexto = ""
+                                    selectedImageUri = null
                                     cargarFeed()
                                 } else {
                                     Toast.makeText(context, "Error al publicar", Toast.LENGTH_SHORT).show()
                                 }
                             } catch (e: Exception) {
-                                Toast.makeText(context, "Sin conexión", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                             } finally {
                                 isPosting = false
                             }
@@ -145,7 +188,7 @@ fun HomeScreen() {
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCreateDialog = false; nuevoTexto = "" }) {
+                TextButton(onClick = { showCreateDialog = false; nuevoTexto = ""; selectedImageUri = null }) {
                     Text("Cancelar", color = UATBlueDark)
                 }
             }
@@ -469,6 +512,26 @@ private fun PostCard(
             // Contenido
             if (!publicacion.contenidoTexto.isNullOrBlank()) {
                 Text(publicacion.contenidoTexto, fontSize = 14.sp, lineHeight = 20.sp, color = UATBlueDark)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Imagen Multimedia
+            if (!publicacion.urlMultimedia.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 300.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.LightGray.copy(alpha = 0.2f))
+                ) {
+                    AsyncImage(
+                        model = RetrofitClient.BASE_URL + publicacion.urlMultimedia.removePrefix("/"),
+                        contentDescription = "Imagen de la publicación",
+                        modifier = Modifier.fillMaxWidth(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.FillWidth,
+                        imageLoader = RetrofitClient.getImageLoader(LocalContext.current)
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
             }
 

@@ -58,8 +58,13 @@ interface ApiService {
         @Query("limit") limit: Int = 20
     ): Response<List<Publicacion>>
 
+    @Multipart
     @POST("api/publicaciones")
-    suspend fun crearPublicacion(@Body request: CrearPublicacionRequest): Response<CrearPublicacionResponse>
+    suspend fun crearPublicacion(
+        @Part("contenido_texto") contenido: okhttp3.RequestBody?,
+        @Part("comunidad_id") comunidadId: okhttp3.RequestBody?,
+        @Part imagen: okhttp3.MultipartBody.Part?
+    ): Response<CrearPublicacionResponse>
 
     @DELETE("api/publicaciones/{id}")
     suspend fun eliminarPublicacion(@Path("id") id: Int): Response<MensajeResponse>
