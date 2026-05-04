@@ -1,11 +1,14 @@
 package com.uat.uatlife.ui.screens
 
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,44 +19,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.uat.uatlife.network.RetrofitClient
 import com.uat.uatlife.network.models.Comunidad
+import com.uat.uatlife.network.models.Publicacion
+import com.uat.uatlife.network.models.ReaccionRequest
+import com.uat.uatlife.ui.components.*
 import com.uat.uatlife.ui.theme.UATBlueDark
 import com.uat.uatlife.ui.theme.UATOrange
 import kotlinx.coroutines.launch
-
-private data class GroupPostMock(
-    val author: String,
-    val timeAgo: String,
-    val content: String,
-    val isNotice: Boolean = false,
-    val attachmentName: String? = null,
-    val likes: Int,
-    val comments: Int
-)
-
-private val postsMock = listOf(
-    GroupPostMock(
-        author = "Carlos Mendoza",
-        timeAgo = "HACE 2 HORAS",
-        content = "¿Alguien tiene los apuntes de la clase de Algoritmos Avanzados de hoy? Tuve problemas con mi conexión y me perdí la última media hora.\n\n¡Se los agradecería mucho!",
-        likes = 12,
-        comments = 4
-    ),
-    GroupPostMock(
-        author = "Ana Pérez",
-        timeAgo = "AYER A LAS 14:30",
-        content = "Recordatorio: El proyecto final de Bases de Datos se entrega el próximo viernes. Asegúrense de revisar los requisitos en la plataforma virtual.",
-        isNotice = true,
-        attachmentName = "Requisitos_Proyecto_Final_BD.pdf",
-        likes = 45,
-        comments = 8
-    )
-)
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 @Composable
 fun CommunityDetailScreen(
@@ -66,18 +48,43 @@ fun CommunityDetailScreen(
     val communityId = communityIdStr.toIntOrNull() ?: 0
 
     var comunidad by remember { mutableStateOf<Comunidad?>(null) }
+    var publicaciones = remember { mutableStateListOf<Publicacion>() }
     var isLoading by remember { mutableStateOf(true) }
+    var isPostsLoading by remember { mutableStateOf(true) }
     var showLeaveDialog by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(0) }
+    var showCommentsForPostId by remember { mutableStateOf<Int?>(null) }
+
+    // Estado para nueva publicación
+    var nuevoTexto by remember { mutableStateOf("") }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var isPosting by remember { mutableStateOf(false) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: Uri? -> selectedImageUri = uri }
+
+    fun cargarDatos() {
+        scope.launch {
+            try {
+                val respC = apiService.getComunidadById(communityId)
+                if (respC.isSuccessful) comunidad = respC.body()
+                
+                val respP = apiService.getPublicaciones(comunidadId = communityId)
+                if (respP.isSuccessful) {
+                    publicaciones.clear()
+                    publicaciones.addAll(respP.body() ?: emptyList())
+                }
+            } catch (e: Exception) {}
+            finally { 
+                isLoading = false
+                isPostsLoading = false
+            }
+        }
+    }
 
     LaunchedEffect(communityId) {
-        try {
-            val resp = apiService.getComunidadById(communityId)
-            if (resp.isSuccessful) {
-                comunidad = resp.body()
-            }
-        } catch (e: Exception) {}
-        finally { isLoading = false }
+        cargarDatos()
     }
 
     if (showLeaveDialog) {
@@ -164,11 +171,9 @@ fun CommunityDetailScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Button(
-                        onClick = {
-                            if (comunidad?.esMiembro == true) {
-                                showLeaveDialog = true
-                            } else {
+                    if (comunidad?.esMiembro == false) {
+                        Button(
+                            onClick = {
                                 scope.launch {
                                     try {
                                         val resp = apiService.unirseAComunidad(communityId)
@@ -178,27 +183,21 @@ fun CommunityDetailScreen(
                                         }
                                     } catch (e: Exception) {}
                                 }
-                            }
-                        },
-                        modifier = Modifier.weight(1f).height(40.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (comunidad?.esMiembro == true) UATBlueDark else UATOrange
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(if (comunidad?.esMiembro == true) "Unido" else "Unirse", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = { /* TODO */ },
-                        modifier = Modifier
-                            .background(Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
-                            .size(40.dp)
-                    ) {
-                        Icon(Icons.Filled.MoreHoriz, contentDescription = "Más", tint = Color.Black)
+                            },
+                            modifier = Modifier.weight(1f).height(40.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = UATOrange),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Unirse a la comunidad", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        // Si ya está unido, mostramos un indicador discreto o nada aquí, 
+                        // ya que el botón de salir estará abajo. Pero el usuario pidió salir al lado.
+                        // "en lugar del boton grande que dice unido, ahi pon para hacer publicacion y al lado un boton de salir"
+                        // Ok, moveré la lógica de publicación a un item del LazyColumn
+                        Text("Eres miembro de esta comunidad", color = UATBlueDark, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     }
                 }
-
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
@@ -225,117 +224,126 @@ fun CommunityDetailScreen(
 
         // --- FEED ---
         if (selectedTab == 0) {
-            // Escribe algo... Box
             if (comunidad?.esMiembro == true) {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier.size(36.dp).clip(CircleShape).background(UATBlueDark),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("JD", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                OutlinedTextField(
+                                    value = nuevoTexto,
+                                    onValueChange = { nuevoTexto = it },
+                                    placeholder = { Text("Escribe algo para el grupo...", fontSize = 13.sp) },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = UATOrange)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                                    Icon(Icons.Filled.Image, null, tint = if (selectedImageUri != null) UATOrange else Color.Gray)
+                                }
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(40.dp)
-                                    .background(Color(0xFFF3F4F6), RoundedCornerShape(20.dp))
-                                    .padding(start = 16.dp),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                Text("Escribe algo para el grupo...", color = Color.Gray, fontSize = 13.sp)
+                            
+                            if (selectedImageUri != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Box(modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp))) {
+                                    AsyncImage(model = selectedImageUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                    IconButton(onClick = { selectedImageUri = null }, modifier = Modifier.align(Alignment.TopEnd).size(20.dp).background(Color.Black.copy(alpha=0.5f), CircleShape)) {
+                                        Icon(Icons.Filled.Close, null, tint = Color.White, modifier = Modifier.size(12.dp))
+                                    }
+                                }
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Icon(Icons.Filled.Image, contentDescription = "Adjuntar Foto", tint = Color.Gray)
+
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Button(
+                                    onClick = {
+                                        if (nuevoTexto.isBlank() && selectedImageUri == null) return@Button
+                                        isPosting = true
+                                        scope.launch {
+                                            try {
+                                                val textPart = nuevoTexto.toRequestBody("text/plain".toMediaTypeOrNull())
+                                                val comIdPart = communityId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
+                                                
+                                                val imagePart = selectedImageUri?.let { uri ->
+                                                    val inputStream = context.contentResolver.openInputStream(uri)
+                                                    val bytes = inputStream?.readBytes() ?: return@let null
+                                                    MultipartBody.Part.createFormData("imagen", "post.jpg", bytes.toRequestBody("image/jpeg".toMediaTypeOrNull()))
+                                                }
+
+                                                val resp = apiService.crearPublicacion(textPart, comIdPart, imagePart)
+                                                if (resp.isSuccessful) {
+                                                    nuevoTexto = ""
+                                                    selectedImageUri = null
+                                                    cargarDatos()
+                                                    Toast.makeText(context, "Publicado con éxito", Toast.LENGTH_SHORT).show()
+                                                }
+                                            } catch (e: Exception) {}
+                                            finally { isPosting = false }
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f).height(36.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = UATOrange),
+                                    enabled = !isPosting
+                                ) {
+                                    if (isPosting) CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                                    else Text("Publicar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                TextButton(
+                                    onClick = { showLeaveDialog = true },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFE11D48))
+                                ) {
+                                    Text("Salir", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            // Posts
-            items(postsMock.size) { index ->
-                CommunityPostCard(postsMock[index])
+            if (isPostsLoading) {
+                item { Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = UATOrange) } }
+            } else if (publicaciones.isEmpty()) {
+                item { Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { Text("Aún no hay publicaciones en esta comunidad.", color = Color.Gray, fontSize = 14.sp) } }
+            } else {
+                items(publicaciones, key = { it.id }) { pub ->
+                    Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        PostCard(
+                            publicacion = pub,
+                            esModerador = false, // TODO: Check if user is admin of community
+                            onReaccion = {
+                                scope.launch {
+                                    try {
+                                        apiService.reaccionar(pub.id, ReaccionRequest("like"))
+                                        val idx = publicaciones.indexOfFirst { it.id == pub.id }
+                                        if (idx >= 0) publicaciones[idx] = publicaciones[idx].copy(totalReacciones = publicaciones[idx].totalReacciones + 1, miReaccion = "like")
+                                    } catch (e: Exception) {}
+                                }
+                            },
+                            onComentar = { showCommentsForPostId = pub.id },
+                            onEliminar = {}
+                        )
+                    }
+                }
             }
         }
     }
-}
 
-@Composable
-private fun CommunityPostCard(post: GroupPostMock) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Header: Author + Time + Aviso tag
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF2C3E50)))
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(post.author, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text(post.timeAgo, color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-                if (post.isNotice) {
-                    Box(modifier = Modifier.background(Color(0xFFFFEDD5), RoundedCornerShape(4.dp)).padding(horizontal=6.dp, vertical=2.dp)) {
-                        Text("AVISO", color = Color(0xFFC2410C), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
-                } else {
-                    Icon(Icons.Filled.MoreHoriz, contentDescription = "Opciones", tint = Color.Gray)
-                }
+    if (showCommentsForPostId != null) {
+        CommentsBottomSheet(
+            postId = showCommentsForPostId!!,
+            apiService = apiService,
+            onDismiss = { showCommentsForPostId = null },
+            onCommentAdded = {
+                val idx = publicaciones.indexOfFirst { it.id == showCommentsForPostId }
+                if (idx >= 0) publicaciones[idx] = publicaciones[idx].copy(totalComentarios = publicaciones[idx].totalComentarios + 1)
             }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Text Content
-            Text(post.content, fontSize = 14.sp, color = Color.DarkGray, lineHeight = 20.sp)
-
-            // Attachment
-            if (post.attachmentName != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Filled.Description, contentDescription = null, tint = UATBlueDark)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(post.attachmentName, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.Black)
-                        Text("2.4 MB", fontSize = 10.sp, color = Color.Gray)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Divider(color = Color(0xFFF3F4F6))
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Interactions
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.ThumbUp, contentDescription = "Me gusta", tint = UATBlueDark, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(post.likes.toString(), fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
-                
-                Spacer(modifier = Modifier.width(24.dp))
-                
-                Icon(Icons.Filled.Comment, contentDescription = "Comentar", tint = Color.Gray, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(post.comments.toString(), fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
-            }
-        }
+        )
     }
 }
+
