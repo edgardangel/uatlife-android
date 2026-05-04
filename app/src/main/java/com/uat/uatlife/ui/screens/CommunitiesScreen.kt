@@ -40,6 +40,7 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
     val comunidades = remember { mutableStateListOf<Comunidad>() }
     var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
+    var showLeaveDialogFor by remember { mutableStateOf<Comunidad?>(null) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var nuevoNombre by remember { mutableStateOf("") }
     var nuevaDesc by remember { mutableStateOf("") }
@@ -157,7 +158,8 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
                 if (misComunidades.isNotEmpty()) {
                     item { Spacer(modifier = Modifier.height(4.dp)); Text("Mis Comunidades (${misComunidades.size})", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray) }
                     items(misComunidades, key = { it.id }) { com ->
-                        ComunidadCard(com, esMiembro = true, onClick = { onNavigateToCommunity(com.id.toString()) }, onUnirse = null)
+                        ComunidadCard(com, esMiembro = true, onClick = { onNavigateToCommunity(com.id.toString()) },
+                            onAction = { showLeaveDialogFor = com })
                     }
                 }
 
@@ -165,7 +167,7 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
                     item { Spacer(modifier = Modifier.height(4.dp)); Text("Descubrir Comunidades", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray) }
                     items(sugeridas, key = { it.id }) { com ->
                         ComunidadCard(com, esMiembro = false, onClick = { onNavigateToCommunity(com.id.toString()) },
-                            onUnirse = {
+                            onAction = {
                                 scope.launch {
                                     try { apiService.unirseAComunidad(com.id); cargarComunidades() }
                                     catch (_: Exception) { Toast.makeText(context, "Error al unirse", Toast.LENGTH_SHORT).show() }
@@ -188,11 +190,36 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
                 item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
+
+        if (showLeaveDialogFor != null) {
+            AlertDialog(
+                onDismissRequest = { showLeaveDialogFor = null },
+                title = { Text("¿Salir de ${showLeaveDialogFor?.nombre}?", fontWeight = FontWeight.Bold) },
+                text = { Text("Dejarás de ser miembro de esta comunidad.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val targetId = showLeaveDialogFor?.id ?: return@Button
+                            showLeaveDialogFor = null
+                            scope.launch {
+                                try {
+                                    apiService.salirDeComunidad(targetId)
+                                    cargarComunidades()
+                                    Toast.makeText(context, "Has salido de la comunidad", Toast.LENGTH_SHORT).show()
+                                } catch (_: Exception) {}
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48))
+                    ) { Text("Salir", color = Color.White) }
+                },
+                dismissButton = { TextButton(onClick = { showLeaveDialogFor = null }) { Text("Cancelar") } }
+            )
+        }
     }
 }
 
 @Composable
-fun ComunidadCard(comunidad: Comunidad, esMiembro: Boolean, onClick: () -> Unit, onUnirse: (() -> Unit)?) {
+fun ComunidadCard(comunidad: Comunidad, esMiembro: Boolean, onClick: () -> Unit, onAction: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = if (esMiembro) Color(0xFFF0F7FF) else Color.White),
@@ -223,18 +250,16 @@ fun ComunidadCard(comunidad: Comunidad, esMiembro: Boolean, onClick: () -> Unit,
                     Spacer(modifier = Modifier.width(3.dp))
                     Text("${comunidad.totalMiembros} miembros", fontSize = 12.sp, color = Color.Gray)
                 }
-                if (!comunidad.descripcion.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(comunidad.descripcion, fontSize = 12.sp, color = Color.Gray, maxLines = 1)
-                }
             }
             Spacer(modifier = Modifier.width(8.dp))
-            if (onUnirse != null) {
-                Button(onClick = { onUnirse() }, colors = ButtonDefaults.buttonColors(containerColor = UATBlueDark), shape = RoundedCornerShape(8.dp), modifier = Modifier.height(32.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)) {
-                    Text("Unirse", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            } else {
-                Icon(Icons.Filled.CheckCircle, null, tint = Color(0xFF16A34A), modifier = Modifier.size(22.dp))
+            Button(
+                onClick = { onAction() },
+                colors = ButtonDefaults.buttonColors(containerColor = if (esMiembro) Color(0xFFE5E7EB) else UATBlueDark),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.height(32.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+            ) {
+                Text(if (esMiembro) "Salir" else "Unirse", fontSize = 12.sp, color = if (esMiembro) Color.Gray else Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }

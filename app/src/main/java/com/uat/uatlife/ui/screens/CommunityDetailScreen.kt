@@ -1,7 +1,9 @@
 package com.uat.uatlife.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -14,50 +16,70 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.uat.uatlife.network.RetrofitClient
+import com.uat.uatlife.network.models.Comunidad
 import com.uat.uatlife.ui.theme.UATBlueDark
 import com.uat.uatlife.ui.theme.UATOrange
-
-private data class GroupPostMock(
-    val author: String,
-    val timeAgo: String,
-    val content: String,
-    val isNotice: Boolean = false,
-    val attachmentName: String? = null,
-    val likes: Int,
-    val comments: Int
-)
-
-private val postsMock = listOf(
-    GroupPostMock(
-        author = "Carlos Mendoza",
-        timeAgo = "HACE 2 HORAS",
-        content = "¿Alguien tiene los apuntes de la clase de Algoritmos Avanzados de hoy? Tuve problemas con mi conexión y me perdí la última media hora.\n\n¡Se los agradecería mucho!",
-        likes = 12,
-        comments = 4
-    ),
-    GroupPostMock(
-        author = "Ana Pérez",
-        timeAgo = "AYER A LAS 14:30",
-        content = "Recordatorio: El proyecto final de Bases de Datos se entrega el próximo viernes. Asegúrense de revisar los requisitos en la plataforma virtual.",
-        isNotice = true,
-        attachmentName = "Requisitos_Proyecto_Final_BD.pdf",
-        likes = 45,
-        comments = 8
-    )
-)
+import kotlinx.coroutines.launch
 
 @Composable
 fun CommunityDetailScreen(
-    communityId: String,
+    communityIdStr: String,
     onBack: () -> Unit
 ) {
-    // Datos básicos de la comunidad (se mostrarán los reales cuando se integre el detalle)
-    val nombreComunidad = "Comunidad #$communityId"
-    var isJoined by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val apiService = remember { RetrofitClient.getApiService(context) }
+    val communityId = communityIdStr.toIntOrNull() ?: 0
+
+    var comunidad by remember { mutableStateOf<Comunidad?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var showLeaveDialog by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(0) }
+
+    LaunchedEffect(communityId) {
+        try {
+            val resp = apiService.getComunidadById(communityId)
+            if (resp.isSuccessful) {
+                comunidad = resp.body()
+            }
+        } catch (e: Exception) {}
+        finally { isLoading = false }
+    }
+
+    if (showLeaveDialog) {
+        AlertDialog(
+            onDismissRequest = { showLeaveDialog = false },
+            title = { Text("¿Salir de la comunidad?", fontWeight = FontWeight.Bold) },
+            text = { Text("Dejarás de ver las publicaciones de este grupo en tu feed.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLeaveDialog = false
+                        scope.launch {
+                            try {
+                                val resp = apiService.salirDeComunidad(communityId)
+                                if (resp.isSuccessful) {
+                                    comunidad = comunidad?.copy(esMiembro = false, totalMiembros = (comunidad?.totalMiembros ?: 1) - 1)
+                                    Toast.makeText(context, "Has salido de la comunidad", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {}
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48))
+                ) {
+                    Text("Salir", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLeaveDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -102,26 +124,40 @@ fun CommunityDetailScreen(
         // Info and Buttons Row
         item {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                Text(nombreComunidad, fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color.Black)
+                Text(comunidad?.nombre ?: "Cargando...", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color.Black)
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Public, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Pública • Miembros", color = Color.Gray, fontSize = 13.sp)
+                    Text("${comunidad?.tipo?.replaceFirstChar { it.uppercase() } ?: ""} • ${comunidad?.totalMiembros ?: 0} Miembros", color = Color.Gray, fontSize = 13.sp)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Button(
-                        onClick = { isJoined = !isJoined },
+                        onClick = {
+                            if (comunidad?.esMiembro == true) {
+                                showLeaveDialog = true
+                            } else {
+                                scope.launch {
+                                    try {
+                                        val resp = apiService.unirseAComunidad(communityId)
+                                        if (resp.isSuccessful) {
+                                            comunidad = comunidad?.copy(esMiembro = true, totalMiembros = (comunidad?.totalMiembros ?: 0) + 1)
+                                            Toast.makeText(context, "¡Te has unido!", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {}
+                                }
+                            }
+                        },
                         modifier = Modifier.weight(1f).height(40.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isJoined) UATBlueDark else UATOrange
+                            containerColor = if (comunidad?.esMiembro == true) UATBlueDark else UATOrange
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text(if (isJoined) "Unido" else "Unirse", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(if (comunidad?.esMiembro == true) "Unido" else "Unirse", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
@@ -161,7 +197,7 @@ fun CommunityDetailScreen(
         // --- FEED ---
         if (selectedTab == 0) {
             // Escribe algo... Box
-            if (isJoined) {
+            if (comunidad?.esMiembro == true) {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
