@@ -133,7 +133,9 @@ data class Publicacion(
     @SerializedName("autor_facultad") val autorFacultad: String?,
     @SerializedName("total_reacciones") val totalReacciones: Int,
     @SerializedName("total_comentarios") val totalComentarios: Int,
-    @SerializedName("mi_reaccion") val miReaccion: String?
+    @SerializedName("mi_reaccion") val miReaccion: String?,
+    @SerializedName("comunidad_id") val comunidadId: Int?,
+    @SerializedName("comunidad_nombre") val comunidadNombre: String?
 )
 
 data class Comentario(

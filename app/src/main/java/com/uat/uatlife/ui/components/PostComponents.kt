@@ -83,6 +83,18 @@ fun PostCard(
                         fontSize = 11.sp,
                         color = Color.Gray
                     )
+                    if (!publicacion.comunidadNombre.isNullOrBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Groups, null, tint = UATOrange, modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "en ${publicacion.comunidadNombre}",
+                                fontSize = 11.sp,
+                                color = UATOrange,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
                 if (esModerador) {
                     IconButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.size(32.dp)) {
