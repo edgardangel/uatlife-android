@@ -185,24 +185,6 @@ fun ProductDetailScreen(
                     fontWeight = FontWeight.Black
                 )
 
-                if (prod.horaInicio != null && prod.horaFin != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .background(Color(0xFFFFF7ED), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Icon(Icons.Filled.Schedule, contentDescription = null, tint = UATOrange, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Disponible hoy: ${prod.horaInicio} - ${prod.horaFin}",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF9A3412)
-                        )
-                    }
-                }
                 
                 Spacer(modifier = Modifier.height(20.dp))
 

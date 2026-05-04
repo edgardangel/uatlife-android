@@ -106,8 +106,6 @@ interface ApiService {
         @Part("precio") precio: okhttp3.RequestBody,
         @Part("condicion") condicion: okhttp3.RequestBody,
         @Part("categoria_id") categoriaId: okhttp3.RequestBody?,
-        @Part("hora_inicio") horaInicio: okhttp3.RequestBody? = null,
-        @Part("hora_fin") horaFin: okhttp3.RequestBody? = null,
         @Part foto: okhttp3.MultipartBody.Part?
     ): Response<CrearProductoResponse>
 
@@ -120,8 +118,6 @@ interface ApiService {
         @Part("precio") precio: okhttp3.RequestBody,
         @Part("condicion") condicion: okhttp3.RequestBody,
         @Part("categoria_id") categoriaId: okhttp3.RequestBody?,
-        @Part("hora_inicio") horaInicio: okhttp3.RequestBody? = null,
-        @Part("hora_fin") horaFin: okhttp3.RequestBody? = null,
         @Part foto: okhttp3.MultipartBody.Part? = null
     ): Response<CrearProductoResponse>
 

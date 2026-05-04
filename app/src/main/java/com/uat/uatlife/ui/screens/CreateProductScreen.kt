@@ -54,8 +54,6 @@ fun CreateProductScreen(
     var categoria by remember { mutableStateOf<Categoria?>(null) }
     var condicion by remember { mutableStateOf("nuevo") }
     var descripcion by remember { mutableStateOf("") }
-    var horaInicio by remember { mutableStateOf<String?>(null) }
-    var horaFin by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var isFetchingDetails by remember { mutableStateOf(false) }
 
@@ -96,8 +94,6 @@ fun CreateProductScreen(
                         descripcion = p.descripcion ?: ""
                         condicion = p.condicion
                         existingImageUrl = p.urlFotoPrincipal
-                        horaInicio = p.horaInicio
-                        horaFin = p.horaFin
                         // Intentar encontrar la categoría en la lista cargada
                         categoria = categorias.find { it.nombre == p.categoria }
                     }
@@ -233,46 +229,6 @@ fun CreateProductScreen(
                 }
             }
 
-            // Horario de Venta (Opcional)
-            Column {
-                Text("Horario de Venta (Opcional)", fontSize = 14.sp, color = Color.DarkGray, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Hora Inicio
-                    OutlinedCard(
-                        onClick = { showTimePicker { horaInicio = it } },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.outlinedCardColors(containerColor = Color.White)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("Desde", fontSize = 11.sp, color = Color.Gray)
-                            Text(horaInicio ?: "--:--", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (horaInicio != null) UATOrange else Color.DarkGray)
-                        }
-                    }
-                    // Hora Fin
-                    OutlinedCard(
-                        onClick = { showTimePicker { horaFin = it } },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.outlinedCardColors(containerColor = Color.White)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("Hasta", fontSize = 11.sp, color = Color.Gray)
-                            Text(horaFin ?: "--:--", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (horaFin != null) UATOrange else Color.DarkGray)
-                        }
-                    }
-                    // Limpiar
-                    if (horaInicio != null || horaFin != null) {
-                        IconButton(onClick = { horaInicio = null; horaFin = null }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Limpiar horario", tint = Color.Gray)
-                        }
-                    }
-                }
-                Text("Si activas un horario, el producto solo aparecerá en el mercado durante esas horas.", fontSize = 11.sp, color = Color.Gray, modifier = Modifier.padding(top = 4.dp))
-            }
 
             // Condición
             Column {
@@ -328,13 +284,11 @@ fun CreateProductScreen(
                                 val precioBody = precioNum.toString().toRequestBody("text/plain".toMediaTypeOrNull())
                                 val condBody = condicion.toRequestBody("text/plain".toMediaTypeOrNull())
                                 val catBody = categoria?.id?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
-                                val hIniBody = horaInicio?.toRequestBody("text/plain".toMediaTypeOrNull())
-                                val hFinBody = horaFin?.toRequestBody("text/plain".toMediaTypeOrNull())
                                 
                                 val fotoPart = ImageUtils.uriToMultipart(context, selectedImageUri!!, "foto")
 
                                 val resp = apiService.crearProducto(
-                                    tituloBody, descBody, precioBody, condBody, catBody, hIniBody, hFinBody, fotoPart
+                                    tituloBody, descBody, precioBody, condBody, catBody, fotoPart
                                 )
 
                                 if (resp.isSuccessful) {
@@ -350,15 +304,13 @@ fun CreateProductScreen(
                                 val precioBody = precioNum.toString().toRequestBody("text/plain".toMediaTypeOrNull())
                                 val condBody = condicion.toRequestBody("text/plain".toMediaTypeOrNull())
                                 val catBody = categoria?.id?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
-                                val hIniBody = horaInicio?.toRequestBody("text/plain".toMediaTypeOrNull())
-                                val hFinBody = horaFin?.toRequestBody("text/plain".toMediaTypeOrNull())
                                 
                                 val fotoPart = if (selectedImageUri != null) {
                                     ImageUtils.uriToMultipart(context, selectedImageUri!!, "foto")
                                 } else null
 
                                 val resp = apiService.actualizarProducto(
-                                    productId, tituloBody, descBody, precioBody, condBody, catBody, hIniBody, hFinBody, fotoPart
+                                    productId, tituloBody, descBody, precioBody, condBody, catBody, fotoPart
                                 )
 
                                 if (resp.isSuccessful) {
