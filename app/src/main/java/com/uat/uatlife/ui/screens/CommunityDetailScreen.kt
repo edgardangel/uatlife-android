@@ -26,6 +26,35 @@ import com.uat.uatlife.ui.theme.UATBlueDark
 import com.uat.uatlife.ui.theme.UATOrange
 import kotlinx.coroutines.launch
 
+private data class GroupPostMock(
+    val author: String,
+    val timeAgo: String,
+    val content: String,
+    val isNotice: Boolean = false,
+    val attachmentName: String? = null,
+    val likes: Int,
+    val comments: Int
+)
+
+private val postsMock = listOf(
+    GroupPostMock(
+        author = "Carlos Mendoza",
+        timeAgo = "HACE 2 HORAS",
+        content = "¿Alguien tiene los apuntes de la clase de Algoritmos Avanzados de hoy? Tuve problemas con mi conexión y me perdí la última media hora.\n\n¡Se los agradecería mucho!",
+        likes = 12,
+        comments = 4
+    ),
+    GroupPostMock(
+        author = "Ana Pérez",
+        timeAgo = "AYER A LAS 14:30",
+        content = "Recordatorio: El proyecto final de Bases de Datos se entrega el próximo viernes. Asegúrense de revisar los requisitos en la plataforma virtual.",
+        isNotice = true,
+        attachmentName = "Requisitos_Proyecto_Final_BD.pdf",
+        likes = 45,
+        comments = 8
+    )
+)
+
 @Composable
 fun CommunityDetailScreen(
     communityIdStr: String,
