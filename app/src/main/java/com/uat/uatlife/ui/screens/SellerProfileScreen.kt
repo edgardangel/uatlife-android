@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -16,39 +17,60 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.ImageLoader
+import coil.compose.AsyncImage
+import com.uat.uatlife.network.RetrofitClient
+import com.uat.uatlife.network.models.Producto
 import com.uat.uatlife.ui.theme.UATBlueDark
 import com.uat.uatlife.ui.theme.UATOrange
+import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 
-private data class MiProducto(
-    val id: Int,
-    val nombre: String,
-    val precio: String,
-    val fecha: String,
-    val status: String // "Vendido" o "En Venta"
-)
-
-private val misProductosMock = listOf(
-    MiProducto(1, "Libreta Universitaria UAT", "$120", "Hoy", "En Venta"),
-    MiProducto(2, "Cargador Tipo C Fast Charge", "$150", "Ayer", "En Venta"),
-    MiProducto(3, "Formateo de Laptops y PC", "$250", "Hace 3 días", "En Venta"),
-    MiProducto(4, "Calculadora Científica Casio", "$300", "Hace 1 semana", "Vendido"),
-    MiProducto(5, "Playera de Tarde UAT M", "$200", "Hace 2 semanas", "Vendido")
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SellerProfileScreen(
     onNavigateToCreateProduct: () -> Unit,
-    onNavigateToEdit: (String, String) -> Unit,
-    onNavigateToProductDetail: (String) -> Unit,
+    onNavigateToEdit: (Int) -> Unit,
+    onNavigateToProductDetail: (Int) -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val apiService = remember { RetrofitClient.getApiService(context) }
+    val imageLoader = remember { RetrofitClient.getImageLoader(context) }
+
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("En Venta", "Vendidos")
+
+    val misProductos = remember { mutableStateListOf<Producto>() }
+    var isLoading by remember { mutableStateOf(false) }
+
+    fun refreshProducts() {
+        isLoading = true
+        scope.launch {
+            try {
+                val resp = apiService.getMisProductos()
+                if (resp.isSuccessful) {
+                    misProductos.clear()
+                    misProductos.addAll(resp.body() ?: emptyList())
+                }
+            } catch (_: Exception) {}
+            finally { isLoading = false }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        refreshProducts()
+    }
 
     Scaffold(
         topBar = {
@@ -137,25 +159,50 @@ fun SellerProfileScreen(
             }
 
             // Lista de productos
-            val filterStatus = if (selectedTab == 0) "En Venta" else "Vendido"
-            val productos = misProductosMock.filter { it.status == filterStatus }
+            val productos = if (selectedTab == 0) {
+                misProductos.filter { !it.estaVendido }
+            } else {
+                misProductos.filter { it.estaVendido }
+            }
 
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(productos) { prod ->
-                    MiProductoCard(
-                        producto = prod, 
-                        onEdit = { onNavigateToEdit(prod.nombre, prod.precio) },
-                        onNavigate = { onNavigateToProductDetail(prod.nombre) }
-                    )
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = UATOrange)
                 }
-                
-                if (productos.isEmpty()) {
-                    item {
-                        Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                            Text("No hay productos en esta lista", color = Color.Gray)
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(productos) { prod ->
+                        MiProductoCard(
+                            producto = prod, 
+                            imageLoader = imageLoader,
+                            onEdit = { onNavigateToEdit(prod.id) },
+                            onNavigate = { onNavigateToProductDetail(prod.id) },
+                            onToggleStatus = {
+                                scope.launch {
+                                    try {
+                                        val json = JSONObject()
+                                        json.put("esta_vendido", !prod.estaVendido)
+                                        val body = json.toString().toRequestBody("application/json".toMediaTypeOrNull())
+                                        val resp = apiService.patchProductStatus(prod.id, body)
+                                        if (resp.isSuccessful) {
+                                            refreshProducts()
+                                        }
+                                    } catch (e: Exception) {
+                                        android.widget.Toast.makeText(context, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        )
+                    }
+                    
+                    if (productos.isEmpty()) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                                Text("No hay productos en esta lista", color = Color.Gray)
+                            }
                         }
                     }
                 }
@@ -165,7 +212,13 @@ fun SellerProfileScreen(
 }
 
 @Composable
-private fun MiProductoCard(producto: MiProducto, onEdit: () -> Unit, onNavigate: () -> Unit) {
+private fun MiProductoCard(
+    producto: Producto, 
+    imageLoader: ImageLoader,
+    onEdit: () -> Unit, 
+    onNavigate: () -> Unit,
+    onToggleStatus: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onNavigate() },
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -183,12 +236,22 @@ private fun MiProductoCard(producto: MiProducto, onEdit: () -> Unit, onNavigate:
                     .background(Color(0xFFF0F2F5)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.Inventory, contentDescription = null, tint = Color.Gray)
+                if (producto.urlFotoPrincipal != null) {
+                    AsyncImage(
+                        model = RetrofitClient.BASE_URL + producto.urlFotoPrincipal.removePrefix("/"),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        imageLoader = imageLoader
+                    )
+                } else {
+                    Icon(Icons.Filled.Inventory, contentDescription = null, tint = Color.Gray)
+                }
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = producto.nombre,
+                    text = producto.titulo,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp,
                     color = UATBlueDark,
@@ -197,17 +260,26 @@ private fun MiProductoCard(producto: MiProducto, onEdit: () -> Unit, onNavigate:
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(producto.precio, fontWeight = FontWeight.Bold, color = UATOrange)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("• Publicado: ${producto.fecha}", fontSize = 11.sp, color = Color.Gray)
+                    Text("$${producto.precio}", fontWeight = FontWeight.Bold, color = UATOrange)
+                    if (producto.horaInicio != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(Icons.Outlined.Schedule, contentDescription = null, modifier = Modifier.size(12.dp), tint = Color.Gray)
+                        Text(" ${producto.horaInicio}", fontSize = 10.sp, color = Color.Gray)
+                    }
                 }
             }
-            if (producto.status == "En Venta") {
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Editar", tint = Color.Gray)
+            
+            if (!producto.estaVendido) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onEdit) {
+                        Icon(Icons.Filled.Edit, contentDescription = "Editar", tint = Color.Gray)
+                    }
+                    TextButton(onClick = onToggleStatus) {
+                        Text("Vendido", fontSize = 12.sp, color = Color.Gray)
+                    }
                 }
             } else {
-                TextButton(onClick = { /* TODO: Backend - Marcar disponible */ }) {
+                TextButton(onClick = onToggleStatus) {
                     Text("Poner Disponible", fontSize = 12.sp, color = UATOrange, fontWeight = FontWeight.Bold)
                 }
             }

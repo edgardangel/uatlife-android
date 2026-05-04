@@ -9,18 +9,93 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
+import coil.ImageLoader
 
 /**
  * Singleton que provee la instancia de Retrofit configurada
  * para comunicarse con el backend de UATLife en Dokploy.
+ *
+ * NOTA: El TrustManager permisivo es solo para debug con el
+ * certificado de Traefik/Dokploy en entorno de desarrollo.
  */
 object RetrofitClient {
 
     // URL base del backend desplegado en Dokploy
-    private const val BASE_URL = "https://bd-uat-bus-api-uatlife-xazfaa-1b2660-157-245-239-94.traefik.me/"
+    const val BASE_URL = "https://bd-uat-bus-api-uatlife-xazfaa-1b2660-157-245-239-94.traefik.me/"
 
     private var apiService: ApiService? = null
+
+    /**
+     * TrustManager que acepta cualquier certificado SSL.
+     * Necesario para el certificado wildcard de traefik.me en desarrollo.
+     */
+    val unsafeTrustManager = object : X509TrustManager {
+        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+        override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+        override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+    }
+
+    fun getUnsafeOkHttpClient(): OkHttpClient {
+        val sslContext = SSLContext.getInstance("TLS").apply {
+            init(null, arrayOf<TrustManager>(unsafeTrustManager), SecureRandom())
+        }
+        return OkHttpClient.Builder()
+            .sslSocketFactory(sslContext.socketFactory, unsafeTrustManager)
+            .hostnameVerifier { _, _ -> true }
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    private fun buildUnsafeSslClient(context: Context): OkHttpClient {
+        val tokenManager = TokenManager(context)
+
+        // Interceptor JWT y control de expiración global
+        val authInterceptor = Interceptor { chain ->
+            val token = runBlocking { tokenManager.getToken().first() }
+            val request = if (token != null) {
+                chain.request().newBuilder()
+                    .addHeader("Authorization", "Bearer $token")
+                    .build()
+            } else {
+                chain.request()
+            }
+            val response = chain.proceed(request)
+            
+            // Si el backend rechaza el token por inválido (403) o expirado (401), limpiamos la sesión
+            if (response.code == 401 || response.code == 403) {
+                runBlocking { tokenManager.clearSession() }
+            }
+            
+            response
+        }
+
+        // Logging para debug
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+
+        // SSL Context que confía en cualquier certificado
+        val sslContext = SSLContext.getInstance("TLS").apply {
+            init(null, arrayOf<TrustManager>(unsafeTrustManager), SecureRandom())
+        }
+
+        return OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
+            .addInterceptor(loggingInterceptor)
+            .sslSocketFactory(sslContext.socketFactory, unsafeTrustManager)
+            .hostnameVerifier { _, _ -> true } // Acepta cualquier hostname de traefik.me
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
 
     /**
      * Obtiene la instancia de ApiService.
@@ -28,44 +103,23 @@ object RetrofitClient {
      */
     fun getApiService(context: Context): ApiService {
         if (apiService == null) {
-            val tokenManager = TokenManager(context)
-
-            // Interceptor para inyectar el token JWT en cada petición
-            val authInterceptor = Interceptor { chain ->
-                val token = runBlocking {
-                    tokenManager.getToken().first()
-                }
-                val request = if (token != null) {
-                    chain.request().newBuilder()
-                        .addHeader("Authorization", "Bearer $token")
-                        .build()
-                } else {
-                    chain.request()
-                }
-                chain.proceed(request)
-            }
-
-            // Interceptor de logging para debug
-            val loggingInterceptor = HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            }
-
-            val okHttpClient = OkHttpClient.Builder()
-                .addInterceptor(authInterceptor)
-                .addInterceptor(loggingInterceptor)
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
-                .build()
-
             val retrofit = Retrofit.Builder()
                 .baseUrl(BASE_URL)
-                .client(okHttpClient)
+                .client(buildUnsafeSslClient(context))
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
 
             apiService = retrofit.create(ApiService::class.java)
         }
         return apiService!!
+    }
+
+    /**
+     * Provee un ImageLoader de Coil que confía en certificados inseguros.
+     */
+    fun getImageLoader(context: Context): ImageLoader {
+        return ImageLoader.Builder(context)
+            .okHttpClient { getUnsafeOkHttpClient() }
+            .build()
     }
 }

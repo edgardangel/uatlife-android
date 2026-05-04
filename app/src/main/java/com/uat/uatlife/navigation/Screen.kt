@@ -11,6 +11,9 @@ sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
     object TermsAndConditions : Screen("terms")
+    object ForgotPassword : Screen("forgot_password")
+    object VerifyOtp : Screen("verify_otp")
+    object ResetPassword : Screen("reset_password")
 
     // --- Pantallas principales (Bottom Navigation) ---
     object Home : Screen("home")           // 🏠 Inicio
@@ -27,5 +30,6 @@ sealed class Screen(val route: String) {
     object EditProduct : Screen("edit_product")
     object ChatDetail : Screen("chat_detail")
     object EditProfile : Screen("edit_profile")
+    object SecuritySettings : Screen("security_settings")
     object CommunityDetail : Screen("community_detail")
 }

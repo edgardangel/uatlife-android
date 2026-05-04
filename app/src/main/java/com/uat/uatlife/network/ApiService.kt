@@ -21,6 +21,26 @@ interface ApiService {
     @GET("api/auth/profile")
     suspend fun getProfile(): Response<UserProfile>
 
+    @Multipart
+    @PUT("api/auth/profile")
+    suspend fun updateProfile(
+        @Part("nombre_completo") nombre: okhttp3.RequestBody?,
+        @Part("bio") bio: okhttp3.RequestBody?,
+        @Part foto: okhttp3.MultipartBody.Part?
+    ): Response<AuthResponse>
+
+    @PUT("api/auth/security")
+    suspend fun updateSecurityInfo(@Body request: okhttp3.RequestBody): Response<MensajeResponse>
+
+    @POST("api/auth/forgot-password")
+    suspend fun forgotPassword(@Body request: okhttp3.RequestBody): Response<MensajeResponse>
+
+    @POST("api/auth/verify-otp")
+    suspend fun verifyOtp(@Body request: okhttp3.RequestBody): Response<VerifyOtpResponse>
+
+    @POST("api/auth/reset-password")
+    suspend fun resetPassword(@Body request: okhttp3.RequestBody): Response<MensajeResponse>
+
     // ==================== BUS TRACKER ====================
 
     @GET("api/bus/paradas")
@@ -78,14 +98,38 @@ interface ApiService {
     @GET("api/productos/categorias")
     suspend fun getCategorias(): Response<List<Categoria>>
 
+    @Multipart
     @POST("api/productos")
-    suspend fun crearProducto(@Body request: CrearProductoRequest): Response<CrearProductoResponse>
+    suspend fun crearProducto(
+        @Part("titulo") titulo: okhttp3.RequestBody,
+        @Part("descripcion") descripcion: okhttp3.RequestBody,
+        @Part("precio") precio: okhttp3.RequestBody,
+        @Part("condicion") condicion: okhttp3.RequestBody,
+        @Part("categoria_id") categoriaId: okhttp3.RequestBody?,
+        @Part("hora_inicio") horaInicio: okhttp3.RequestBody? = null,
+        @Part("hora_fin") horaFin: okhttp3.RequestBody? = null,
+        @Part foto: okhttp3.MultipartBody.Part?
+    ): Response<CrearProductoResponse>
 
+    @Multipart
     @PUT("api/productos/{id}")
     suspend fun actualizarProducto(
         @Path("id") id: Int,
-        @Body request: CrearProductoRequest
+        @Part("titulo") titulo: okhttp3.RequestBody,
+        @Part("descripcion") descripcion: okhttp3.RequestBody?,
+        @Part("precio") precio: okhttp3.RequestBody,
+        @Part("condicion") condicion: okhttp3.RequestBody,
+        @Part("categoria_id") categoriaId: okhttp3.RequestBody?,
+        @Part("hora_inicio") horaInicio: okhttp3.RequestBody? = null,
+        @Part("hora_fin") horaFin: okhttp3.RequestBody? = null,
+        @Part foto: okhttp3.MultipartBody.Part? = null
     ): Response<CrearProductoResponse>
+
+    @PATCH("api/productos/{id}/status")
+    suspend fun patchProductStatus(
+        @Path("id") id: Int,
+        @Body body: okhttp3.RequestBody
+    ): Response<MensajeResponse>
 
     @DELETE("api/productos/{id}")
     suspend fun eliminarProducto(@Path("id") id: Int): Response<MensajeResponse>

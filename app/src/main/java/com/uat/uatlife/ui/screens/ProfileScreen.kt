@@ -30,17 +30,27 @@ import com.uat.uatlife.ui.theme.UATBlue
 import com.uat.uatlife.ui.theme.UATBlueDark
 import com.uat.uatlife.ui.theme.UATOrange
 import kotlinx.coroutines.launch
+import coil.ImageLoader
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     onNavigateToEditProfile: () -> Unit,
+    onNavigateToSecurity: () -> Unit,
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { RetrofitClient.getApiService(context) }
     val coroutineScope = rememberCoroutineScope()
+    
+    val imageLoader = remember {
+        ImageLoader.Builder(context)
+            .okHttpClient { RetrofitClient.getUnsafeOkHttpClient() }
+            .build()
+    }
 
     val userType by tokenManager.getUserType().collectAsState(initial = "alumno")
     val scrollState = rememberScrollState()
@@ -61,9 +71,9 @@ fun ProfileScreen(
                 val resp = apiService.getProfile()
                 if (resp.isSuccessful) {
                     profile = resp.body()
-                } else if (resp.code() == 401) {
-                    // Token expirado → logout
-                    Toast.makeText(context, "Sesión expirada, inicia sesión nuevamente", Toast.LENGTH_LONG).show()
+                } else if (resp.code() == 401 || resp.code() == 403) {
+                    // Token expirado o inválido (mock antiguo) → logout
+                    Toast.makeText(context, "Sesión inválida, inicia sesión nuevamente", Toast.LENGTH_LONG).show()
                     onLogout()
                 } else {
                     errorMsg = "No se pudo cargar el perfil"
@@ -167,7 +177,17 @@ fun ProfileScreen(
                                         .border(3.dp, UATOrange, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Filled.Person, null, tint = Color.Gray, modifier = Modifier.size(60.dp))
+                                    if (!p.urlFotoPerfil.isNullOrEmpty()) {
+                                        AsyncImage(
+                                            model = "https://bd-uat-bus-api-uatlife-xazfaa-1b2660-157-245-239-94.traefik.me${p.urlFotoPerfil}",
+                                            contentDescription = "Foto de Perfil",
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop,
+                                            imageLoader = imageLoader
+                                        )
+                                    } else {
+                                        Icon(Icons.Filled.Person, null, tint = Color.Gray, modifier = Modifier.size(60.dp))
+                                    }
                                 }
                                 Box(
                                     modifier = Modifier.size(28.dp).align(Alignment.BottomEnd)
@@ -348,7 +368,7 @@ fun ProfileScreen(
                         Column {
                             SettingsOptionRow(Icons.Filled.Person, "Configurar Perfil", onClick = onNavigateToEditProfile)
                             Divider(color = Color(0xFFF3F4F6))
-                            SettingsOptionRow(Icons.Outlined.Lock, "Privacidad y Seguridad", onClick = { })
+                            SettingsOptionRow(Icons.Outlined.Lock, "Privacidad y Seguridad", onClick = onNavigateToSecurity)
                             Divider(color = Color(0xFFF3F4F6))
                             SettingsOptionRow(Icons.Outlined.Notifications, "Notificaciones", onClick = { })
                             Divider(color = Color(0xFFF3F4F6))

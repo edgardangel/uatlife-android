@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+        Configuración para el backend en Dokploy (traefik.me).
+        Permite conexiones HTTPS con certificados de Let's Encrypt / Traefik
+        y también conexiones de texto claro para pruebas locales en desarrollo.
+    -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <!-- Confiar en las CAs del sistema (Let's Encrypt, etc.) -->
+            <certificates src="system" />
+            <!-- Confiar también en CAs del usuario para pruebas -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Dominio específico de Dokploy/Traefik -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">traefik.me</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

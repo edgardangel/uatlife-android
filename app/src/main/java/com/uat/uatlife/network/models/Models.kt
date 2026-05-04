@@ -41,7 +41,9 @@ data class CrearProductoRequest(
     @SerializedName("categoria_id") val categoriaId: Int?,
     val condicion: String,
     @SerializedName("facultad_id") val facultadId: Int?,
-    @SerializedName("url_foto_principal") val urlFotoPrincipal: String? = null
+    @SerializedName("url_foto_principal") val urlFotoPrincipal: String? = null,
+    @SerializedName("hora_inicio") val horaInicio: String? = null,
+    @SerializedName("hora_fin") val horaFin: String? = null
 )
 
 data class EnviarMensajeRequest(
@@ -81,6 +83,11 @@ data class AuthResponse(
     val usuario: UserProfile
 )
 
+data class VerifyOtpResponse(
+    val mensaje: String,
+    val resetToken: String?
+)
+
 data class UserProfile(
     val id: Int,
     @SerializedName("nombre_completo") val nombreCompleto: String,
@@ -97,6 +104,8 @@ data class UserProfile(
     @SerializedName("url_foto_perfil") val urlFotoPerfil: String? = null,
     val bio: String? = null,
     @SerializedName("semestre_actual") val semestreActual: Int? = null,
+    @SerializedName("correo_secundario") val correoSecundario: String? = null,
+    val telefono: String? = null,
     @SerializedName("suspension_hasta") val suspensionHasta: String? = null,
     @SerializedName("ban_permanente") val banPermanente: Boolean = false,
     @SerializedName("created_at") val createdAt: String? = null
@@ -154,7 +163,9 @@ data class Producto(
     val categoria: String?,
     @SerializedName("facultad_entrega") val facultadEntrega: String?,
     @SerializedName("calificacion_promedio") val calificacionPromedio: Double,
-    @SerializedName("total_resenas") val totalResenas: Int
+    @SerializedName("total_resenas") val totalResenas: Int,
+    @SerializedName("hora_inicio") val horaInicio: String? = null,
+    @SerializedName("hora_fin") val horaFin: String? = null
 )
 
 data class Categoria(

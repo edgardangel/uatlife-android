@@ -1,5 +1,6 @@
 package com.uat.uatlife.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,30 +10,77 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.NotificationsNone
-import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.ImageLoader
+import coil.compose.AsyncImage
+import com.uat.uatlife.network.RetrofitClient
+import com.uat.uatlife.network.models.Producto
 import com.uat.uatlife.ui.theme.UATBlueDark
+import com.uat.uatlife.ui.theme.UATOrange
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductDetailScreen(
-    producto: com.uat.uatlife.data.mock.ProductoMock?,
+    productoId: Int,
     onBack: () -> Unit
 ) {
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val apiService = remember { RetrofitClient.getApiService(context) }
+    val imageLoader = remember {
+        ImageLoader.Builder(context)
+            .okHttpClient { RetrofitClient.getUnsafeOkHttpClient() }
+            .build()
+    }
+
+    var producto by remember { mutableStateOf<Producto?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(productoId) {
+        if (productoId <= 0) {
+            Toast.makeText(context, "ID de producto inválido", Toast.LENGTH_SHORT).show()
+            onBack()
+            return@LaunchedEffect
+        }
+        try {
+            val response = apiService.getProductoById(productoId)
+            if (response.isSuccessful) {
+                producto = response.body()
+            } else {
+                Toast.makeText(context, "No se pudo cargar el producto", Toast.LENGTH_SHORT).show()
+                onBack()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(context, "Error de red", Toast.LENGTH_SHORT).show()
+            onBack()
+        } finally {
+            isLoading = false
+        }
+    }
 
     Scaffold() { padding ->
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = UATOrange)
+            }
+            return@Scaffold
+        }
+
+        val prod = producto
+        if (prod == null) return@Scaffold
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -85,43 +133,76 @@ fun ProductDetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(300.dp)
-                    .background(Color(0xFFE5E7EB)) // Placeholder de foto
+                    .background(Color(0xFFE5E7EB))
             ) {
-                // Simulación de los puntitos de paginación (Carousel dots)
-                Row(
+                if (!prod.urlFotoPrincipal.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = RetrofitClient.BASE_URL + prod.urlFotoPrincipal!!.removePrefix("/"),
+                        contentDescription = prod.titulo,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        imageLoader = imageLoader
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.ShoppingBag,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(80.dp).align(Alignment.Center)
+                    )
+                }
+
+                // Condición Badge
+                Box(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 12.dp)
-                        .background(Color.Black.copy(alpha=0.3f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                        .background(Color.Black.copy(alpha=0.6f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
-                    repeat(5) { i ->
-                        Box(
-                            modifier = Modifier
-                                .size(if (i == 0) 8.dp else 6.dp)
-                                .clip(CircleShape)
-                                .background(if (i == 0) Color.White else Color.White.copy(alpha=0.5f))
-                        )
-                    }
+                    Text(
+                        prod.condicion.replaceFirstChar { it.uppercase() },
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
             Column(modifier = Modifier.padding(16.dp)) {
                 // Título y Precio
                 Text(
-                    text = producto?.nombre ?: "Producto Desconocido",
+                    text = prod.titulo,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = producto?.precio ?: "$0",
+                    text = "$${String.format("%.0f", prod.precio)}",
                     fontSize = 18.sp,
-                    color = Color.DarkGray
+                    color = UATBlueDark,
+                    fontWeight = FontWeight.Black
                 )
+
+                if (prod.horaInicio != null && prod.horaFin != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .background(Color(0xFFFFF7ED), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(Icons.Filled.Schedule, contentDescription = null, tint = UATOrange, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Disponible hoy: ${prod.horaInicio} - ${prod.horaFin}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF9A3412)
+                        )
+                    }
+                }
                 
                 Spacer(modifier = Modifier.height(20.dp))
 
@@ -134,7 +215,7 @@ fun ProductDetailScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = producto?.descripcion ?: "Sin descripción.",
+                    text = prod.descripcion ?: "Sin descripción proporcionada.",
                     fontSize = 14.sp,
                     color = Color.DarkGray,
                     lineHeight = 22.sp
@@ -162,7 +243,7 @@ fun ProductDetailScreen(
                         fontSize = 15.sp
                     )
                     IconButton(onClick = { /*TODO*/ }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Filled.Send, contentDescription = "Enviar", tint = UATBlueDark, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.Send, contentDescription = "Enviar", tint = UATOrange, modifier = Modifier.size(20.dp))
                     }
                 }
 
@@ -194,22 +275,28 @@ fun ProductDetailScreen(
                             .background(Color(0xFFE5E7EB)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.Person, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(32.dp))
+                if (!prod.vendedorFoto.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = RetrofitClient.BASE_URL + prod.vendedorFoto!!.removePrefix("/"),
+                        contentDescription = prod.vendedorNombre,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        imageLoader = imageLoader
+                    )
+                        } else {
+                            Icon(Icons.Filled.Person, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(32.dp))
+                        }
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     
                     // Info Vendedor
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Carlos Hernandez", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
+                        Text(prod.vendedorNombre, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
                         Spacer(modifier = Modifier.height(2.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Star, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
-                            Icon(Icons.Filled.Star, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
-                            Icon(Icons.Filled.Star, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
-                            Icon(Icons.Filled.Star, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
-                            Icon(Icons.Filled.StarHalf, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Filled.Shield, contentDescription = null, tint = UATOrange, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("4.7", fontSize = 14.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                            Text("${prod.vendedorConfianza}% confianza", fontSize = 14.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -219,9 +306,5 @@ fun ProductDetailScreen(
         }
     }
 }
-
-// Extractor para borde sutil en Card
-@Composable
-private fun borderStroke() = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB))
 
 

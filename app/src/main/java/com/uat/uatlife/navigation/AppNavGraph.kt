@@ -68,6 +68,51 @@ fun AppNavGraph(
                     navController.navigate(Screen.Register.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
+                },
+                onNavigateToForgotPassword = {
+                    navController.navigate(Screen.ForgotPassword.route)
+                }
+            )
+        }
+
+        composable(Screen.ForgotPassword.route) {
+            ForgotPasswordScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToVerifyOtp = { identificador ->
+                    val encoded = java.net.URLEncoder.encode(identificador, "UTF-8")
+                    navController.navigate(Screen.VerifyOtp.route + "?id=$encoded")
+                }
+            )
+        }
+
+        composable(
+            route = Screen.VerifyOtp.route + "?id={identificador}",
+            arguments = listOf(navArgument("identificador") { type = NavType.StringType; defaultValue = "" })
+        ) { backStackEntry ->
+            val identificador = backStackEntry.arguments?.getString("identificador") ?: ""
+            VerifyOtpScreen(
+                identificador = identificador,
+                onBack = { navController.popBackStack() },
+                onNavigateToReset = { resetToken ->
+                    val encoded = java.net.URLEncoder.encode(resetToken, "UTF-8")
+                    navController.navigate(Screen.ResetPassword.route + "?token=$encoded") {
+                        popUpTo(Screen.ForgotPassword.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(
+            route = Screen.ResetPassword.route + "?token={resetToken}",
+            arguments = listOf(navArgument("resetToken") { type = NavType.StringType; defaultValue = "" })
+        ) { backStackEntry ->
+            val resetToken = backStackEntry.arguments?.getString("resetToken") ?: ""
+            ResetPasswordScreen(
+                resetToken = resetToken,
+                onBackToLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = false }
+                    }
                 }
             )
         }
@@ -118,9 +163,8 @@ fun AppNavGraph(
         composable(Screen.SellerProfile.route) {
             SellerProfileScreen(
                 onNavigateToCreateProduct = { navController.navigate(Screen.CreateProduct.route) },
-                onNavigateToEdit = { nombre, precio -> 
-                    // Safe encoding can be bypassed for simple mock string but normally we'd pass IDs.
-                    navController.navigate(Screen.EditProduct.route + "/${nombre}/${precio}") 
+                onNavigateToEdit = { productId -> 
+                    navController.navigate(Screen.EditProduct.route + "/$productId") 
                 },
                 onNavigateToProductDetail = { nombre -> navController.navigate(Screen.ProductDetail.route + "/$nombre") },
                 onBack = { navController.popBackStack() }
@@ -128,13 +172,13 @@ fun AppNavGraph(
         }
 
         composable(
-            route = Screen.ProductDetail.route + "/{nombre}",
-            arguments = listOf(navArgument("nombre") { type = NavType.StringType })
+            route = Screen.ProductDetail.route + "/{id}",
+            arguments = listOf(navArgument("id") { type = NavType.StringType })
         ) { backStackEntry ->
-            val nombre = backStackEntry.arguments?.getString("nombre") ?: ""
-            val producto = productosMock.find { it.nombre == nombre }
+            val idStr = backStackEntry.arguments?.getString("id") ?: ""
+            val id = idStr.toIntOrNull() ?: 0
             ProductDetailScreen(
-                producto = producto,
+                productoId = id,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -146,17 +190,14 @@ fun AppNavGraph(
         }
 
         composable(
-            route = Screen.EditProduct.route + "/{nombre}/{precio}",
+            route = Screen.EditProduct.route + "/{productId}",
             arguments = listOf(
-                navArgument("nombre") { type = NavType.StringType },
-                navArgument("precio") { type = NavType.StringType }
+                navArgument("productId") { type = NavType.IntType }
             )
         ) { backStackEntry ->
-            val nombre = backStackEntry.arguments?.getString("nombre") ?: ""
-            val precio = backStackEntry.arguments?.getString("precio") ?: ""
+            val productId = backStackEntry.arguments?.getInt("productId") ?: 0
             CreateProductScreen(
-                initialNombre = nombre,
-                initialPrecio = precio,
+                productId = productId,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -175,11 +216,18 @@ fun AppNavGraph(
         composable(Screen.Profile.route) {
             ProfileScreen(
                 onNavigateToEditProfile = { navController.navigate(Screen.EditProfile.route) },
+                onNavigateToSecurity = { navController.navigate(Screen.SecuritySettings.route) },
                 onLogout = {
                     navController.navigate(Screen.Welcome.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable(Screen.SecuritySettings.route) {
+            SecuritySettingsScreen(
+                onBack = { navController.popBackStack() }
             )
         }
 

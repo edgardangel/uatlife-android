@@ -64,7 +64,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
-    onNavigateToRegister: () -> Unit
+    onNavigateToRegister: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -182,7 +183,7 @@ fun LoginScreen(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.clickable {
-                        Toast.makeText(context, "Función de recuperación próximamente", Toast.LENGTH_SHORT).show()
+                        onNavigateToForgotPassword()
                     }
                 )
             }
@@ -281,7 +282,7 @@ fun LoginScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

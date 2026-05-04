@@ -30,6 +30,9 @@ import com.uat.uatlife.network.models.Categoria
 import com.uat.uatlife.network.models.Producto
 import com.uat.uatlife.ui.theme.*
 import kotlinx.coroutines.launch
+import coil.ImageLoader
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +46,11 @@ fun MarketScreen(
     val apiService = remember { RetrofitClient.getApiService(context) }
     val tokenManager = remember { TokenManager(context) }
     val userType by tokenManager.getUserType().collectAsState(initial = "alumno")
+    val imageLoader = remember {
+        ImageLoader.Builder(context)
+            .okHttpClient { RetrofitClient.getUnsafeOkHttpClient() }
+            .build()
+    }
 
     // Estado del mercado
     val productos = remember { mutableStateListOf<Producto>() }
@@ -326,6 +334,7 @@ fun MarketScreen(
                         ProductoGridCard(
                             producto = producto,
                             esModerador = userType == "moderador",
+                            imageLoader = imageLoader,
                             onClick = { onNavigateToProduct(producto.id.toString()) },
                             onEliminar = {
                                 scope.launch {
@@ -354,6 +363,7 @@ fun MarketScreen(
 private fun ProductoGridCard(
     producto: Producto,
     esModerador: Boolean,
+    imageLoader: ImageLoader,
     onClick: () -> Unit,
     onEliminar: () -> Unit
 ) {
@@ -388,20 +398,30 @@ private fun ProductoGridCard(
             Box(
                 modifier = Modifier.fillMaxWidth().height(140.dp).background(Color(0xFFE5E7EB))
             ) {
-                // Ícono de categoría como placeholder
-                val iconForBg = when (producto.categoria?.lowercase()) {
-                    "comida"       -> Icons.Filled.Fastfood
-                    "libros"       -> Icons.Filled.MenuBook
-                    "apuntes"      -> Icons.Filled.Description
-                    "electrónica"  -> Icons.Filled.Computer
-                    "servicios"    -> Icons.Filled.Build
-                    "ropa"         -> Icons.Filled.Checkroom
-                    "deporte"      -> Icons.Filled.SportsHandball
-                    "arte"         -> Icons.Filled.Palette
-                    else           -> Icons.Filled.ShoppingBag
+                if (!producto.urlFotoPrincipal.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = RetrofitClient.BASE_URL + producto.urlFotoPrincipal!!.removePrefix("/"),
+                        contentDescription = producto.titulo,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        imageLoader = imageLoader
+                    )
+                } else {
+                    // Ícono de categoría como placeholder
+                    val iconForBg = when (producto.categoria?.lowercase()) {
+                        "comida"       -> Icons.Filled.Fastfood
+                        "libros"       -> Icons.Filled.MenuBook
+                        "apuntes"      -> Icons.Filled.Description
+                        "electrónica"  -> Icons.Filled.Computer
+                        "servicios"    -> Icons.Filled.Build
+                        "ropa"         -> Icons.Filled.Checkroom
+                        "deporte"      -> Icons.Filled.SportsHandball
+                        "arte"         -> Icons.Filled.Palette
+                        else           -> Icons.Filled.ShoppingBag
+                    }
+                    Icon(iconForBg, null, tint = Color.Gray.copy(alpha = 0.4f),
+                        modifier = Modifier.size(60.dp).align(Alignment.Center))
                 }
-                Icon(iconForBg, null, tint = Color.Gray.copy(alpha = 0.4f),
-                    modifier = Modifier.size(60.dp).align(Alignment.Center))
 
                 // Badge Premium
                 if (producto.esPremium) {
