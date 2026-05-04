@@ -242,7 +242,7 @@ fun AppNavGraph(
         ) { backStackEntry ->
             val id = backStackEntry.arguments?.getString("id") ?: ""
             CommunityDetailScreen(
-                communityId = id,
+                communityIdStr = id,
                 onBack = { navController.popBackStack() }
             )
         }
