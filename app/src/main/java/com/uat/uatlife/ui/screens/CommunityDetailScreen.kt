@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.uat.uatlife.network.RetrofitClient
 import com.uat.uatlife.network.models.Comunidad
+import com.uat.uatlife.data.TokenManager
 import com.uat.uatlife.network.models.Publicacion
 import com.uat.uatlife.network.models.ReaccionRequest
 import com.uat.uatlife.ui.components.*
@@ -45,6 +46,9 @@ fun CommunityDetailScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val apiService = remember { RetrofitClient.getApiService(context) }
+    val tokenManager = remember { TokenManager(context) }
+    val currentUserId by tokenManager.getUserId().collectAsState(initial = null)
+    val currentUserName by tokenManager.getUserName().collectAsState(initial = null)
     val communityId = communityIdStr.toIntOrNull() ?: 0
 
     var comunidad by remember { mutableStateOf<Comunidad?>(null) }
@@ -316,6 +320,7 @@ fun CommunityDetailScreen(
                         PostCard(
                             publicacion = pub,
                             esModerador = false, // TODO: Check if user is admin of community
+                            esPropietario = (pub.autorId == currentUserId) || (pub.autorNombre == currentUserName),
                             onReaccion = {
                                 scope.launch {
                                     try {
@@ -326,7 +331,19 @@ fun CommunityDetailScreen(
                                 }
                             },
                             onComentar = { showCommentsForPostId = pub.id },
-                            onEliminar = {}
+                            onEliminar = {
+                                scope.launch {
+                                    try {
+                                        val resp = apiService.eliminarPublicacion(pub.id)
+                                        if (resp.isSuccessful) {
+                                            publicaciones.remove(pub)
+                                            Toast.makeText(context, "Publicación eliminada", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error al eliminar", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
                         )
                     }
                 }

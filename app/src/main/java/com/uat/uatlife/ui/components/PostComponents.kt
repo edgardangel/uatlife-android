@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 fun PostCard(
     publicacion: Publicacion,
     esModerador: Boolean,
+    esPropietario: Boolean = false,
     onReaccion: () -> Unit,
     onComentar: () -> Unit,
     onEliminar: () -> Unit
@@ -96,7 +97,7 @@ fun PostCard(
                         }
                     }
                 }
-                if (esModerador) {
+                if (esModerador || esPropietario) {
                     IconButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Filled.Delete, "Eliminar", tint = Color(0xFFE11D48), modifier = Modifier.size(18.dp))
                     }

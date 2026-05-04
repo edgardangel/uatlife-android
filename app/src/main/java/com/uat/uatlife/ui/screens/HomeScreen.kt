@@ -46,6 +46,8 @@ fun HomeScreen() {
     val tokenManager = remember { TokenManager(context) }
     val apiService = remember { RetrofitClient.getApiService(context) }
     val userType by tokenManager.getUserType().collectAsState(initial = "alumno")
+    val currentUserId by tokenManager.getUserId().collectAsState(initial = null)
+    val currentUserName by tokenManager.getUserName().collectAsState(initial = null)
 
     // Estados del Feed
     val publicaciones = remember { mutableStateListOf<Publicacion>() }
@@ -388,6 +390,7 @@ fun HomeScreen() {
                         PostCard(
                             publicacion = pub,
                             esModerador = userType == "moderador",
+                            esPropietario = (pub.autorId == currentUserId) || (pub.autorNombre == currentUserName),
                             onReaccion = {
                                 scope.launch {
                                     try {

@@ -23,6 +23,7 @@ class TokenManager(private val context: Context) {
         private val USER_NAME_KEY = stringPreferencesKey("user_name")
         private val USER_MATRICULA_KEY = stringPreferencesKey("user_matricula")
         private val USER_TYPE_KEY = stringPreferencesKey("user_type")
+        private val USER_ID_KEY = stringPreferencesKey("user_id")
     }
 
     /**
@@ -37,12 +38,22 @@ class TokenManager(private val context: Context) {
     /**
      * Guarda el token JWT y datos básicos del usuario.
      */
-    suspend fun saveSession(token: String, nombre: String, matricula: String, tipoUsuario: String) {
+    suspend fun saveSession(token: String, nombre: String, matricula: String, tipoUsuario: String, userId: Int) {
         context.dataStore.edit { preferences ->
             preferences[TOKEN_KEY] = token
             preferences[USER_NAME_KEY] = nombre
             preferences[USER_MATRICULA_KEY] = matricula
             preferences[USER_TYPE_KEY] = tipoUsuario
+            preferences[USER_ID_KEY] = userId.toString()
+        }
+    }
+
+    /**
+     * Obtiene el ID del usuario guardado.
+     */
+    fun getUserId(): Flow<Int?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[USER_ID_KEY]?.toIntOrNull()
         }
     }
 

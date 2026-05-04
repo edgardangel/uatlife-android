@@ -448,7 +448,8 @@ fun RegisterScreen(
                                             token = body.token,
                                             nombre = body.usuario.nombreCompleto,
                                             matricula = body.usuario.matricula,
-                                            tipoUsuario = body.usuario.tipoUsuario
+                                            tipoUsuario = body.usuario.tipoUsuario,
+                                            userId = body.usuario.id
                                         )
                                         Toast.makeText(context, body.mensaje, Toast.LENGTH_LONG).show()
                                         onRegisterSuccess()
