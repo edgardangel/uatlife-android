@@ -221,7 +221,9 @@ fun SellerProfileScreen(
                                             refreshProducts()
                                             android.widget.Toast.makeText(context, resp.body()?.mensaje ?: "Estado actualizado", android.widget.Toast.LENGTH_SHORT).show()
                                         } else {
-                                            android.widget.Toast.makeText(context, "Error al actualizar", android.widget.Toast.LENGTH_SHORT).show()
+                                            val errorBody = resp.errorBody()?.string()
+                                            val msg = try { org.json.JSONObject(errorBody).getString("error") } catch(_: Exception) { "Error al actualizar" }
+                                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                     } catch (e: Exception) {
                                         android.widget.Toast.makeText(context, "Error de red: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
