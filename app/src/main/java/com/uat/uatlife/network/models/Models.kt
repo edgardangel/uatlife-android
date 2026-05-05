@@ -46,6 +46,10 @@ data class CrearProductoRequest(
     @SerializedName("hora_fin") val horaFin: String? = null
 )
 
+data class StatusRequest(
+    @SerializedName("esta_vendido") val estaVendido: Boolean
+)
+
 data class EnviarMensajeRequest(
     @SerializedName("destinatario_id") val destinatarioId: Int,
     val contenido: String,

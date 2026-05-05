@@ -215,10 +215,8 @@ fun SellerProfileScreen(
                             onToggleStatus = {
                                 scope.launch {
                                     try {
-                                        val json = JSONObject()
-                                        json.put("esta_vendido", !prod.estaVendido)
-                                        val body = json.toString().toRequestBody("application/json".toMediaTypeOrNull())
-                                        val resp = apiService.patchProductStatus(prod.id, body)
+                                        val request = com.uat.uatlife.network.models.StatusRequest(!prod.estaVendido)
+                                        val resp = apiService.patchProductStatus(prod.id, request)
                                         if (resp.isSuccessful) {
                                             refreshProducts()
                                             android.widget.Toast.makeText(context, resp.body()?.mensaje ?: "Estado actualizado", android.widget.Toast.LENGTH_SHORT).show()

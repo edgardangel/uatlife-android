@@ -129,7 +129,7 @@ interface ApiService {
     @PATCH("api/productos/{id}/status")
     suspend fun patchProductStatus(
         @Path("id") id: Int,
-        @Body body: okhttp3.RequestBody
+        @Body body: StatusRequest
     ): Response<MensajeResponse>
 
     @DELETE("api/productos/{id}")
