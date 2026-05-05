@@ -143,8 +143,14 @@ interface ApiService {
     @GET("api/mensajes/conversaciones/{convId}")
     suspend fun getMensajes(@Path("convId") convId: Int): Response<List<Mensaje>>
 
+    @DELETE("api/mensajes/conversaciones/{convId}")
+    suspend fun eliminarConversacion(@Path("convId") convId: Int): Response<MensajeResponse>
+
     @POST("api/mensajes")
     suspend fun enviarMensaje(@Body request: EnviarMensajeRequest): Response<Mensaje>
+
+    @GET("api/mensajes/usuarios/buscar")
+    suspend fun buscarUsuarios(@Query("q") query: String): Response<List<UsuarioBusqueda>>
 
     // ==================== COMUNIDADES ====================
 

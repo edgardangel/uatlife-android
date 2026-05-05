@@ -265,6 +265,14 @@ data class TopEmprendedor(
     @SerializedName("score_emprendedor") val scoreEmprendedor: Double
 )
 
+data class UsuarioBusqueda(
+    val id: Int,
+    @SerializedName("nombre_completo") val nombreCompleto: String,
+    val matricula: String,
+    @SerializedName("url_foto_perfil") val urlFotoPerfil: String? = null,
+    @SerializedName("facultad_id") val facultadId: Int? = null
+)
+
 data class ErrorResponse(val error: String)
 data class ApiInfoResponse(val mensaje: String, val version: String)
 data class MiembroComunidad(
