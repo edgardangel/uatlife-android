@@ -1,5 +1,6 @@
 package com.uat.uatlife.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -220,9 +221,12 @@ fun SellerProfileScreen(
                                         val resp = apiService.patchProductStatus(prod.id, body)
                                         if (resp.isSuccessful) {
                                             refreshProducts()
+                                            android.widget.Toast.makeText(context, resp.body()?.mensaje ?: "Estado actualizado", android.widget.Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            android.widget.Toast.makeText(context, "Error al actualizar", android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                     } catch (e: Exception) {
-                                        android.widget.Toast.makeText(context, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(context, "Error de red: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             }
@@ -303,15 +307,27 @@ private fun MiProductoCard(
             if (!producto.estaVendido) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onEdit) {
-                        Icon(Icons.Filled.Edit, contentDescription = "Editar", tint = Color.Gray)
+                        Icon(Icons.Filled.Edit, contentDescription = "Editar", tint = Color.Gray, modifier = Modifier.size(20.dp))
                     }
-                    TextButton(onClick = onToggleStatus) {
-                        Text("Vendido", fontSize = 12.sp, color = Color.Gray)
+                    Button(
+                        onClick = onToggleStatus,
+                        colors = ButtonDefaults.buttonColors(containerColor = UATOrange),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("Marcar Vendido", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             } else {
-                TextButton(onClick = onToggleStatus) {
-                    Text("Poner Disponible", fontSize = 12.sp, color = UATOrange, fontWeight = FontWeight.Bold)
+                OutlinedButton(
+                    onClick = onToggleStatus,
+                    border = BorderStroke(1.dp, UATOrange),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text("Poner Disponible", fontSize = 11.sp, color = UATOrange, fontWeight = FontWeight.Bold)
                 }
             }
         }
