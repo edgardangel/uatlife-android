@@ -58,6 +58,7 @@ fun MarketScreen(
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
+    var perfil by remember { mutableStateOf<com.uat.uatlife.network.models.UserProfile?>(null) }
 
     // Filtros
     var searchQuery by remember { mutableStateOf("") }
@@ -91,6 +92,12 @@ fun MarketScreen(
 
     // Cargar categorías (una sola vez)
     LaunchedEffect(Unit) {
+        scope.launch {
+            try {
+                val resp = apiService.getProfile()
+                if (resp.isSuccessful) perfil = resp.body()
+            } catch (_: Exception) {}
+        }
         try {
             val respCat = apiService.getCategorias()
             if (respCat.isSuccessful) {
@@ -163,7 +170,17 @@ fun MarketScreen(
                     .clickable(onClick = onNavigateToSellerProfile),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.Person, "Mi perfil vendedor", tint = UATBlueDark, modifier = Modifier.size(22.dp))
+                if (perfil?.urlFotoPerfil != null) {
+                    AsyncImage(
+                        model = RetrofitClient.BASE_URL + perfil?.urlFotoPerfil?.removePrefix("/"),
+                        contentDescription = "Mi perfil vendedor",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        imageLoader = imageLoader
+                    )
+                } else {
+                    Icon(Icons.Filled.Person, "Mi perfil vendedor", tint = UATBlueDark, modifier = Modifier.size(22.dp))
+                }
             }
         }
 

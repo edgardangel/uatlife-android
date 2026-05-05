@@ -8,6 +8,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -52,12 +54,17 @@ fun SellerProfileScreen(
     val tabs = listOf("En Venta", "Vendidos")
 
     val misProductos = remember { mutableStateListOf<Producto>() }
+    var perfil by remember { mutableStateOf<com.uat.uatlife.network.models.UserProfile?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
     fun refreshProducts() {
         isLoading = true
         scope.launch {
             try {
+                // Cargar perfil para mostrar foto y puntos
+                val respP = apiService.getProfile()
+                if (respP.isSuccessful) perfil = respP.body()
+
                 val resp = apiService.getMisProductos()
                 if (resp.isSuccessful) {
                     misProductos.clear()
@@ -116,17 +123,41 @@ fun SellerProfileScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(60.dp)
+                            .size(65.dp)
                             .clip(CircleShape)
                             .background(Color(0xFFE5E7EB)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.Store, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(30.dp))
+                        if (perfil?.urlFotoPerfil != null) {
+                            AsyncImage(
+                                model = RetrofitClient.BASE_URL + perfil?.urlFotoPerfil?.removePrefix("/"),
+                                contentDescription = "Foto de perfil",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                                imageLoader = imageLoader
+                            )
+                        } else {
+                            Icon(Icons.Filled.Person, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(35.dp))
+                        }
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Edgar Prueba", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = UATBlueDark)
-                        Text("Vendedor Activo • 4.9 ⭐", fontSize = 13.sp, color = Color.Gray)
+                        Text(
+                            text = perfil?.nombreCompleto ?: "Cargando...",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = UATBlueDark
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.VerifiedUser, null, tint = UATOrange, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Confianza: ${perfil?.puntosConfianza ?: 0} pts",
+                                fontSize = 13.sp,
+                                color = UATOrange,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }
