@@ -20,13 +20,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.ImageLoader
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import com.uat.uatlife.data.TokenManager
 import com.uat.uatlife.network.RetrofitClient
 import com.uat.uatlife.network.models.EnviarMensajeRequest
 import com.uat.uatlife.network.models.Mensaje
 import com.uat.uatlife.ui.theme.UATBlueDark
 import com.uat.uatlife.ui.theme.UATOrange
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,6 +54,13 @@ fun ChatDetailScreen(
     var isSending by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
+    // Datos del producto vinculado
+    var productoId by remember { mutableStateOf<Int?>(null) }
+    var productoTitulo by remember { mutableStateOf<String?>(null) }
+    var productoPrecio by remember { mutableStateOf<Double?>(null) }
+    var productoFoto by remember { mutableStateOf<String?>(null) }
+    var productoVendido by remember { mutableStateOf<Boolean?>(null) }
+
     // --- Cargar mensajes de la conversación ---
     fun cargarMensajes(scrollToBottom: Boolean = false) {
         scope.launch {
@@ -74,16 +84,39 @@ fun ChatDetailScreen(
     LaunchedEffect(chatId) {
         try {
             val convId = chatId.toIntOrNull() ?: return@LaunchedEffect
-            val resp = apiService.getConversaciones()
-            if (resp.isSuccessful) {
-                val conv = resp.body()?.find { it.id == convId }
-                if (conv != null) {
-                    nombreContacto = conv.otroUsuarioNombre
-                    otroUsuarioId = conv.otroUsuarioId
+            // Cargar nombre del contacto
+            try {
+                val resp = apiService.getConversaciones()
+                if (resp.isSuccessful) {
+                    val conv = resp.body()?.find { it.id == convId }
+                    if (conv != null) {
+                        nombreContacto = conv.otroUsuarioNombre
+                        otroUsuarioId = conv.otroUsuarioId
+                        // Guardar datos del producto si existe
+                        productoId = conv.productoId
+                        productoTitulo = conv.productoTitulo
+                        productoPrecio = conv.productoPrecio
+                        productoFoto = conv.productoFoto
+                        productoVendido = conv.productoVendido
+                    }
                 }
+            } catch (_: Exception) { }
+
+            // Cargar mensajes de la conversación
+            try {
+                val resp = apiService.getMensajes(convId)
+                if (resp.isSuccessful) {
+                    val lista = resp.body() ?: emptyList()
+                    mensajes.clear()
+                    mensajes.addAll(lista)
+                }
+            } catch (_: Exception) { }
+        } finally {
+            isLoading = false
+            if (mensajes.isNotEmpty()) {
+                listState.animateScrollToItem(mensajes.size - 1)
             }
-        } catch (_: Exception) { }
-        cargarMensajes(scrollToBottom = true)
+        }
     }
 
     // Auto-scroll cuando llegan nuevos mensajes
@@ -154,6 +187,22 @@ fun ChatDetailScreen(
             }
         }
         Divider(color = Color(0xFFE5E7EB))
+
+        // ── Tarjeta del Producto ───────────────────────────────────
+        if (productoTitulo != null) {
+            ProductoChatBanner(
+                titulo = productoTitulo!!,
+                precio = productoPrecio,
+                fotoUrl = productoFoto,
+                vendido = productoVendido == true,
+                imageLoader = remember {
+                    coil.ImageLoader.Builder(context)
+                        .okHttpClient { RetrofitClient.getUnsafeOkHttpClient() }
+                        .build()
+                }
+            )
+            Divider(color = Color(0xFFE5E7EB))
+        }
 
         // ── Zona de Mensajes ──────────────────────────────────────
         when {
@@ -299,6 +348,86 @@ private fun ChatBubble(mensaje: Mensaje, esMio: Boolean) {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ProductoChatBanner(
+    titulo: String,
+    precio: Double?,
+    fotoUrl: String?,
+    vendido: Boolean,
+    imageLoader: ImageLoader
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(if (vendido) Color(0xFFF3F4F6) else Color(0xFFFFF7ED))
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Foto del producto
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFFE5E7EB)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!fotoUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = RetrofitClient.BASE_URL + fotoUrl.removePrefix("/"),
+                    contentDescription = titulo,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    imageLoader = imageLoader
+                )
+            } else {
+                Icon(
+                    Icons.Filled.ShoppingBag, null,
+                    tint = Color.Gray, modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = titulo,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                color = Color.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            if (precio != null) {
+                Text(
+                    text = "$${String.format("%.0f", precio)}",
+                    fontSize = 13.sp,
+                    color = UATBlueDark,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Badge de estado
+        Box(
+            modifier = Modifier
+                .background(
+                    if (vendido) Color(0xFFEF4444) else Color(0xFF10B981),
+                    RoundedCornerShape(20.dp)
+                )
+                .padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = if (vendido) "Vendido" else "Disponible",
+                fontSize = 11.sp,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

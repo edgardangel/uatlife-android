@@ -186,7 +186,13 @@ data class Conversacion(
     @SerializedName("otro_usuario_nombre") val otroUsuarioNombre: String,
     @SerializedName("otro_usuario_foto") val otroUsuarioFoto: String?,
     @SerializedName("ultimo_mensaje") val ultimoMensaje: String?,
-    @SerializedName("mensajes_no_leidos") val mensajesNoLeidos: Int
+    @SerializedName("mensajes_no_leidos") val mensajesNoLeidos: Int,
+    // Datos del producto vinculado (puede ser null si no hay producto)
+    @SerializedName("producto_id") val productoId: Int? = null,
+    @SerializedName("producto_titulo") val productoTitulo: String? = null,
+    @SerializedName("producto_precio") val productoPrecio: Double? = null,
+    @SerializedName("producto_foto") val productoFoto: String? = null,
+    @SerializedName("producto_vendido") val productoVendido: Boolean? = null
 )
 
 data class Mensaje(
