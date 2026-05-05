@@ -13,6 +13,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,12 +29,12 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.uat.uatlife.network.RetrofitClient
 import com.uat.uatlife.network.models.Comunidad
+import com.uat.uatlife.network.models.MiembroComunidad
 import com.uat.uatlife.data.TokenManager
 import com.uat.uatlife.network.models.Publicacion
 import com.uat.uatlife.network.models.ReaccionRequest
 import com.uat.uatlife.ui.components.*
-import com.uat.uatlife.ui.theme.UATBlueDark
-import com.uat.uatlife.ui.theme.UATOrange
+import com.uat.uatlife.ui.theme.*
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -232,7 +234,7 @@ fun CommunityDetailScreen(
                     Text("Info", modifier = Modifier.padding(16.dp), fontWeight = if (selectedTab==2) FontWeight.Bold else FontWeight.Normal)
                 }
             }
-            Divider(color = Color(0xFFE5E7EB))
+            HorizontalDivider(color = Color(0xFFE5E7EB))
         }
 
         // --- FEED ---
