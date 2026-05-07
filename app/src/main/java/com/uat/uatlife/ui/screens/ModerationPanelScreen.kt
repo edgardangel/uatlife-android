@@ -27,6 +27,8 @@ import com.uat.uatlife.network.models.UsuarioSancionado
 import com.uat.uatlife.network.models.ValidacionPendiente
 import com.uat.uatlife.network.models.Reporte
 import com.uat.uatlife.network.models.ResolverReporteRequest
+import com.uat.uatlife.network.models.SancionarRequest
+import com.uat.uatlife.ui.components.*
 import com.uat.uatlife.ui.theme.UATBlueDark
 import com.uat.uatlife.ui.theme.UATOrange
 import kotlinx.coroutines.launch
@@ -178,13 +180,12 @@ fun ModerationPanelScreen(
                                         onRevocar = {
                                             scope.launch {
                                                 try {
-                                                    val json = JSONObject().apply {
-                                                        put("usuario_id", u.id)
-                                                        put("tipo_sancion", "levantamiento")
-                                                        put("motivo", "Revocado por moderador")
-                                                    }.toString()
-                                                    val body = json.toRequestBody("application/json".toMediaTypeOrNull())
-                                                    val resp = apiService.sancionarUsuario(body)
+                                                    val request = SancionarRequest(
+                                                        usuarioId = u.id,
+                                                        tipoSancion = "levantamiento",
+                                                        motivo = "Revocado por moderador"
+                                                    )
+                                                    val resp = apiService.sancionarUsuario(request)
                                                     if (resp.isSuccessful) {
                                                         Toast.makeText(context, "Sanción revocada", Toast.LENGTH_SHORT).show()
                                                         cargarDatos()
