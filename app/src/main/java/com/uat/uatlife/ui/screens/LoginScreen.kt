@@ -209,7 +209,9 @@ fun LoginScreen(
                                     nombre = body.usuario.nombreCompleto,
                                     matricula = body.usuario.matricula,
                                     tipoUsuario = body.usuario.tipoUsuario,
-                                    userId = body.usuario.id
+                                    userId = body.usuario.id,
+                                    banPermanente = body.usuario.banPermanente,
+                                    suspensionHasta = body.usuario.suspensionHasta
                                 )
                                 Toast.makeText(context, body.mensaje, Toast.LENGTH_SHORT).show()
                                 onLoginSuccess()

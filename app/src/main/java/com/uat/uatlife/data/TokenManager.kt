@@ -24,6 +24,8 @@ class TokenManager(private val context: Context) {
         private val USER_MATRICULA_KEY = stringPreferencesKey("user_matricula")
         private val USER_TYPE_KEY = stringPreferencesKey("user_type")
         private val USER_ID_KEY = stringPreferencesKey("user_id")
+        private val BAN_PERMANENTE_KEY = stringPreferencesKey("ban_permanente")
+        private val SUSPENSION_HASTA_KEY = stringPreferencesKey("suspension_hasta")
     }
 
     /**
@@ -38,13 +40,23 @@ class TokenManager(private val context: Context) {
     /**
      * Guarda el token JWT y datos básicos del usuario.
      */
-    suspend fun saveSession(token: String, nombre: String, matricula: String, tipoUsuario: String, userId: Int) {
+    suspend fun saveSession(
+        token: String, 
+        nombre: String, 
+        matricula: String, 
+        tipoUsuario: String, 
+        userId: Int,
+        banPermanente: Boolean = false,
+        suspensionHasta: String? = null
+    ) {
         context.dataStore.edit { preferences ->
             preferences[TOKEN_KEY] = token
             preferences[USER_NAME_KEY] = nombre
             preferences[USER_MATRICULA_KEY] = matricula
             preferences[USER_TYPE_KEY] = tipoUsuario
             preferences[USER_ID_KEY] = userId.toString()
+            preferences[BAN_PERMANENTE_KEY] = banPermanente.toString()
+            preferences[SUSPENSION_HASTA_KEY] = suspensionHasta ?: ""
         }
     }
 
@@ -85,11 +97,40 @@ class TokenManager(private val context: Context) {
     }
 
     /**
-     * Cambia el tipo de usuario en caliente (Para habilitar el Panel de Moderador desde settings).
+     * Cambia el tipo de usuario en caliente.
      */
     suspend fun setUserType(tipoUsuario: String) {
         context.dataStore.edit { preferences ->
             preferences[USER_TYPE_KEY] = tipoUsuario
+        }
+    }
+
+    /**
+     * Obtiene si el usuario tiene ban permanente.
+     */
+    fun getBanPermanente(): Flow<Boolean> {
+        return context.dataStore.data.map { preferences ->
+            preferences[BAN_PERMANENTE_KEY] == "true"
+        }
+    }
+
+    /**
+     * Obtiene la fecha de suspensión.
+     */
+    fun getSuspensionHasta(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            val s = preferences[SUSPENSION_HASTA_KEY]
+            if (s.isNullOrBlank()) null else s
+        }
+    }
+
+    /**
+     * Actualiza el estado de sanción.
+     */
+    suspend fun updateSanctionStatus(ban: Boolean, suspension: String?) {
+        context.dataStore.edit { preferences ->
+            preferences[BAN_PERMANENTE_KEY] = ban.toString()
+            preferences[SUSPENSION_HASTA_KEY] = suspension ?: ""
         }
     }
 
