@@ -154,7 +154,7 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
                                     val inputStream = context.contentResolver.openInputStream(uri)
                                     val bytes = inputStream?.readBytes()
                                     if (bytes != null) {
-                                        val requestFile = bytes.toRequestBody("image/*".toMediaTypeOrNull())
+                                        val requestFile = bytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
                                         imagePart = okhttp3.MultipartBody.Part.createFormData("imagen", "comunidad_${System.currentTimeMillis()}.jpg", requestFile)
                                     }
                                 }
