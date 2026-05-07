@@ -138,51 +138,80 @@ fun ModerationPanelScreen(onBack: () -> Unit) {
                 }
             } else {
                 LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (selectedTab == 0) {
-                        if (validaciones.isEmpty()) {
-                            item { Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { Text("No hay validaciones pendientes", color = Color.Gray) } }
-                        } else {
-                            items(validaciones) { v ->
-                                ValidacionCard(
-                                    validacion = v,
-                                    onResolver = { estatus ->
-                                        scope.launch {
-                                            try {
-                                                val resp = apiService.resolverValidacion(v.id, ResolverValidacionRequest(estatus))
-                                                if (resp.isSuccessful) {
-                                                    Toast.makeText(context, "Usuario $estatus", Toast.LENGTH_SHORT).show()
-                                                    cargarDatos()
-                                                }
-                                            } catch (e: Exception) {}
+                    when (selectedTab) {
+                        0 -> {
+                            if (validaciones.isEmpty()) {
+                                item { Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { Text("No hay validaciones pendientes", color = Color.Gray) } }
+                            } else {
+                                items(validaciones) { v ->
+                                    ValidacionCard(
+                                        validacion = v,
+                                        onResolver = { estatus ->
+                                            scope.launch {
+                                                try {
+                                                    val resp = apiService.resolverValidacion(v.id, ResolverValidacionRequest(estatus))
+                                                    if (resp.isSuccessful) {
+                                                        Toast.makeText(context, "Usuario $estatus", Toast.LENGTH_SHORT).show()
+                                                        cargarDatos()
+                                                    }
+                                                } catch (e: Exception) {}
+                                            }
                                         }
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
-                        }
-                    } else if (selectedTab == 2) {
-                        if (reportes.isEmpty()) {
-                            item { Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { Text("No hay reportes pendientes", color = Color.Gray) } }
-                        } else {
-                            items(reportes) { r ->
-                                ReporteCard(
-                                    reporte = r,
-                                    onResolver = { resolucion ->
-                                        scope.launch {
-                                            try {
-                                                val resp = apiService.resolverReporte(r.id, com.uat.uatlife.network.models.ResolverReporteRequest(resolucion))
-                                                if (resp.isSuccessful) {
-                                                    Toast.makeText(context, "Reporte resuelto", Toast.LENGTH_SHORT).show()
-                                                    cargarDatos()
-                                                }
-                                            } catch (e: Exception) {}
+                        1 -> {
+                            if (sancionados.isEmpty()) {
+                                item { Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { Text("No hay usuarios sancionados", color = Color.Gray) } }
+                            } else {
+                                items(sancionados) { u ->
+                                    SancionadoCard(
+                                        usuario = u,
+                                        onRevocar = {
+                                            scope.launch {
+                                                try {
+                                                    val json = JSONObject().apply {
+                                                        put("usuario_id", u.id)
+                                                        put("tipo_sancion", "levantamiento")
+                                                        put("motivo", "Revocado por moderador")
+                                                    }.toString()
+                                                    val body = json.toRequestBody("application/json".toMediaTypeOrNull())
+                                                    val resp = apiService.sancionarUsuario(body)
+                                                    if (resp.isSuccessful) {
+                                                        Toast.makeText(context, "Sanción revocada", Toast.LENGTH_SHORT).show()
+                                                        cargarDatos()
+                                                    }
+                                                } catch (e: Exception) {}
+                                            }
                                         }
-                                    },
-                                    onHablar = {
-                                        // TODO: Navegar a chat con r.reportadoUsuarioId
-                                        Toast.makeText(context, "Funcionalidad de chat para moderadores en desarrollo", Toast.LENGTH_SHORT).show()
-                                    }
-                                )
+                                    )
+                                }
+                            }
+                        }
+                        2 -> {
+                            if (reportes.isEmpty()) {
+                                item { Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { Text("No hay reportes pendientes", color = Color.Gray) } }
+                            } else {
+                                items(reportes) { r ->
+                                    ReporteCard(
+                                        reporte = r,
+                                        onResolver = { resolucion ->
+                                            scope.launch {
+                                                try {
+                                                    val resp = apiService.resolverReporte(r.id, ResolverReporteRequest(resolucion))
+                                                    if (resp.isSuccessful) {
+                                                        Toast.makeText(context, "Reporte resuelto", Toast.LENGTH_SHORT).show()
+                                                        cargarDatos()
+                                                    }
+                                                } catch (e: Exception) {}
+                                            }
+                                        },
+                                        onHablar = {
+                                            Toast.makeText(context, "Chat con el usuario en desarrollo", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
