@@ -25,6 +25,8 @@ import com.uat.uatlife.network.RetrofitClient
 import com.uat.uatlife.network.models.ResolverValidacionRequest
 import com.uat.uatlife.network.models.UsuarioSancionado
 import com.uat.uatlife.network.models.ValidacionPendiente
+import com.uat.uatlife.network.models.Reporte
+import com.uat.uatlife.network.models.ResolverReporteRequest
 import com.uat.uatlife.ui.theme.UATBlueDark
 import com.uat.uatlife.ui.theme.UATOrange
 import kotlinx.coroutines.launch

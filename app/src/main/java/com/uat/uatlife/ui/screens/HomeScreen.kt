@@ -29,6 +29,7 @@ import com.uat.uatlife.network.RetrofitClient
 import com.uat.uatlife.network.models.CrearPublicacionRequest
 import com.uat.uatlife.network.models.Publicacion
 import com.uat.uatlife.network.models.ReaccionRequest
+import com.uat.uatlife.network.models.CrearReporteRequest
 import com.uat.uatlife.ui.components.*
 import com.uat.uatlife.ui.theme.*
 import kotlinx.coroutines.launch

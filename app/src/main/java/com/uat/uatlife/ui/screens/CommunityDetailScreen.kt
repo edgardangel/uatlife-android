@@ -33,6 +33,7 @@ import com.uat.uatlife.network.models.MiembroComunidad
 import com.uat.uatlife.data.TokenManager
 import com.uat.uatlife.network.models.Publicacion
 import com.uat.uatlife.network.models.ReaccionRequest
+import com.uat.uatlife.network.models.CrearReporteRequest
 import com.uat.uatlife.ui.components.*
 import com.uat.uatlife.ui.theme.*
 import kotlinx.coroutines.launch
