@@ -133,6 +133,38 @@ fun CommunityDetailScreen(
         )
     }
 
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("¿Eliminar comunidad?", fontWeight = FontWeight.Bold, color = Color(0xFFE11D48)) },
+            text = { Text("Como moderador, tienes el poder de eliminar esta comunidad definitivamente. Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDialog = false
+                        scope.launch {
+                            try {
+                                val resp = apiService.eliminarComunidad(communityId)
+                                if (resp.isSuccessful) {
+                                    Toast.makeText(context, "Comunidad eliminada correctamente", Toast.LENGTH_SHORT).show()
+                                    onBack()
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Error al eliminar comunidad", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48))
+                ) {
+                    Text("Eliminar Definitivamente", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -161,17 +193,7 @@ fun CommunityDetailScreen(
                         }
                         if (currentUserType == "moderador") {
                             IconButton(
-                                onClick = {
-                                    scope.launch {
-                                        try {
-                                            val resp = apiService.eliminarComunidad(communityId)
-                                            if (resp.isSuccessful) {
-                                                Toast.makeText(context, "Comunidad eliminada (Moderador)", Toast.LENGTH_SHORT).show()
-                                                onBack()
-                                            }
-                                        } catch (e: Exception) {}
-                                    }
-                                },
+                                onClick = { showDeleteDialog = true },
                                 modifier = Modifier.background(Color(0x80000000), CircleShape)
                             ) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Eliminar", tint = Color.Red)
