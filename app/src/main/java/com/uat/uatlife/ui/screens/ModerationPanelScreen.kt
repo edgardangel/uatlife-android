@@ -218,16 +218,23 @@ private fun ValidacionCard(validacion: ValidacionPendiente, onResolver: (String)
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Button(
-                    onClick = { onResolver("validado") },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                    onClick = { onResolver("aprobado") },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF166534)),
                     shape = RoundedCornerShape(8.dp)
-                ) { Text("Aprobar") }
+                ) {
+                    Text("Aprobar", color = Color.White)
+                }
                 
-                Button(
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                OutlinedButton(
                     onClick = { onResolver("rechazado") },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                    modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp)
-                ) { Text("Rechazar") }
+                ) {
+                    Text("Rechazar")
+                }
             }
         }
     }

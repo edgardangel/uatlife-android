@@ -266,7 +266,7 @@ fun ProfileScreen(
                             // Badge estatus validación
                             Spacer(modifier = Modifier.height(8.dp))
                             val (estatusLabel, estatusColor, estatusBg) = when (p.estatusValidacion) {
-                                "validado"    -> Triple("✓ Validado", Color(0xFF166534), Color(0xFFDCFCE7))
+                                "aprobado"    -> Triple("✓ Validado", Color(0xFF166534), Color(0xFFDCFCE7))
                                 "pendiente"   -> Triple("⏳ Pendiente", Color(0xFF854D0E), Color(0xFFFEF9C3))
                                 "rechazado"   -> Triple("✗ Rechazado", Color(0xFF991B1B), Color(0xFFFEE2E2))
                                 else          -> Triple("Desconocido", Color.Gray, Color(0xFFF3F4F6))
