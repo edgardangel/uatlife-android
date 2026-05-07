@@ -39,7 +39,10 @@ import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ModerationPanelScreen(onBack: () -> Unit) {
+fun ModerationPanelScreen(
+    onBack: () -> Unit,
+    onNavigateToChat: (Int) -> Unit
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val apiService = remember { RetrofitClient.getApiService(context) }
@@ -208,7 +211,27 @@ fun ModerationPanelScreen(onBack: () -> Unit) {
                                             }
                                         },
                                         onHablar = {
-                                            Toast.makeText(context, "Chat con el usuario en desarrollo", Toast.LENGTH_SHORT).show()
+                                            if (r.reportadoUsuarioId != null) {
+                                                scope.launch {
+                                                    try {
+                                                        val request = com.uat.uatlife.network.models.EnviarMensajeRequest(
+                                                            destinatarioId = r.reportadoUsuarioId,
+                                                            contenido = "Hola, soy el moderador de UATLife. He recibido un reporte sobre tu contenido y me gustaría conversar al respecto."
+                                                        )
+                                                        val resp = apiService.enviarMensaje(request)
+                                                        if (resp.isSuccessful) {
+                                                            val msg = resp.body()
+                                                            if (msg != null) {
+                                                                onNavigateToChat(msg.conversacionId)
+                                                            }
+                                                        } else {
+                                                            Toast.makeText(context, "Error al iniciar chat", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        Toast.makeText(context, "Error de red", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            }
                                         }
                                     )
                                 }

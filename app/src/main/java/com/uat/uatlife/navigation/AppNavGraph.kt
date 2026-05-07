@@ -249,7 +249,10 @@ fun AppNavGraph(
         }
         composable(Screen.ModerationPanel.route) {
             ModerationPanelScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onNavigateToChat = { chatId ->
+                    navController.navigate(Screen.ChatDetail.route + "/$chatId")
+                }
             )
         }
     }

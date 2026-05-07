@@ -221,6 +221,7 @@ data class Conversacion(
 
 data class Mensaje(
     val id: Int,
+    @SerializedName("conversacion_id") val conversacionId: Int,
     val contenido: String,
     val tipo: String,
     val leido: Boolean,
