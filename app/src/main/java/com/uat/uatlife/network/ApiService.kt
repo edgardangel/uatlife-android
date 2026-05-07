@@ -219,5 +219,5 @@ interface ApiService {
     suspend fun getSancionados(): Response<List<UsuarioSancionado>>
 
     @POST("api/moderacion/sancionar")
-    suspend fun sancionarUsuario(@Body request: okhttp3.RequestBody): Response<MensajeResponse>
+    suspend fun sancionarUsuario(@Body request: SancionarRequest): Response<MensajeResponse>
 }

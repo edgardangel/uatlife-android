@@ -56,6 +56,10 @@ fun ModerationPanelScreen(
     val sancionados = remember { mutableStateListOf<UsuarioSancionado>() }
     val reportes = remember { mutableStateListOf<com.uat.uatlife.network.models.Reporte>() }
 
+    // Estado para diálogo de sanción
+    var showSanctionDialog by remember { mutableStateOf(false) }
+    var selectedReportForSanction by remember { mutableStateOf<com.uat.uatlife.network.models.Reporte?>(null) }
+
     fun cargarDatos() {
         isLoading = true
         scope.launch {
@@ -232,6 +236,10 @@ fun ModerationPanelScreen(
                                                     }
                                                 }
                                             }
+                                        },
+                                        onSancionar = {
+                                            selectedReportForSanction = r
+                                            showSanctionDialog = true
                                         }
                                     )
                                 }
@@ -241,6 +249,42 @@ fun ModerationPanelScreen(
                 }
             }
         }
+    }
+
+    if (showSanctionDialog && selectedReportForSanction != null) {
+        val r = selectedReportForSanction!!
+        SanctionDialog(
+            usuarioNombre = r.reportadoUsuarioNombre ?: "Usuario #${r.reportadoUsuarioId}",
+            onDismiss = { showSanctionDialog = false },
+            onConfirm = { tipo, motivo, horas ->
+                if (r.reportadoUsuarioId != null) {
+                    scope.launch {
+                        try {
+                            // 1. Aplicar sanción
+                            val sanctionReq = com.uat.uatlife.network.models.SancionarRequest(
+                                usuarioId = r.reportadoUsuarioId,
+                                tipoSancion = tipo,
+                                motivo = motivo,
+                                duracionHoras = horas
+                            )
+                            val respSanction = apiService.sancionarUsuario(sanctionReq)
+                            
+                            if (respSanction.isSuccessful) {
+                                // 2. Resolver reporte automáticamente
+                                apiService.resolverReporte(r.id, ResolverReporteRequest("Sanción aplicada: $tipo. Motivo: $motivo"))
+                                Toast.makeText(context, "Sanción aplicada y reporte resuelto", Toast.LENGTH_SHORT).show()
+                                showSanctionDialog = false
+                                cargarDatos()
+                            } else {
+                                Toast.makeText(context, "Error al aplicar sanción", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Error de red", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        )
     }
 }
 
@@ -343,7 +387,8 @@ private fun SancionadoCard(usuario: UsuarioSancionado, onRevocar: () -> Unit) {
 private fun ReporteCard(
     reporte: com.uat.uatlife.network.models.Reporte,
     onResolver: (resolucion: String) -> Unit,
-    onHablar: () -> Unit
+    onHablar: () -> Unit,
+    onSancionar: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -405,7 +450,7 @@ private fun ReporteCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 
                 Button(
-                    onClick = { onResolver("Sanción aplicada") },
+                    onClick = onSancionar,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48)),
                     shape = RoundedCornerShape(8.dp)

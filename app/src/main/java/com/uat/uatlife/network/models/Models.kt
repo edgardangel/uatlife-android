@@ -89,6 +89,13 @@ data class ResolverReporteRequest(
     val estado: String = "resuelto"
 )
 
+data class SancionarRequest(
+    @SerializedName("usuario_id") val usuarioId: Int,
+    @SerializedName("tipo_sancion") val tipoSancion: String, // 'ban_permanente', 'suspension_temporal', 'levantamiento'
+    val motivo: String,
+    @SerializedName("duracion_horas") val duracionHoras: Int? = null
+)
+
 data class CrearReporteRequest(
     @SerializedName("tipo_objetivo") val tipoObjetivo: String,
     @SerializedName("objetivo_id") val objetivoId: Int,
