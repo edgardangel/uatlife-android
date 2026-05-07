@@ -294,9 +294,9 @@ fun ComunidadCard(comunidad: Comunidad, esMiembro: Boolean, onClick: () -> Unit,
                     .background(when (comunidad.tipo) { "oficial" -> UATOrange; "privada" -> Color(0xFF6B7280); else -> UATBlueDark }),
                 contentAlignment = Alignment.Center
             ) {
-                if (!comunidad.urlImagen.isNullOrBlank()) {
+                if (!comunidad.urlBanner.isNullOrBlank()) {
                     coil.compose.AsyncImage(
-                        model = "https://157.245.239.94${comunidad.urlImagen}",
+                        model = "https://157.245.239.94${comunidad.urlBanner}",
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = androidx.compose.ui.layout.ContentScale.Crop
