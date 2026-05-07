@@ -26,17 +26,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import com.uat.uatlife.network.RetrofitClient
-import com.uat.uatlife.network.models.Comunidad
-import com.uat.uatlife.network.models.MiembroComunidad
-import com.uat.uatlife.data.TokenManager
-import com.uat.uatlife.network.models.Publicacion
-import com.uat.uatlife.network.models.ReaccionRequest
-import com.uat.uatlife.network.models.CrearReporteRequest
-import com.uat.uatlife.ui.components.*
 import com.uat.uatlife.ui.theme.*
 import kotlinx.coroutines.launch
+import coil.ImageLoader
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -74,6 +68,12 @@ fun CommunityDetailScreen(
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri: Uri? -> selectedImageUri = uri }
+
+    val imageLoader = remember {
+        ImageLoader.Builder(context)
+            .okHttpClient { RetrofitClient.getUnsafeOkHttpClient() }
+            .build()
+    }
 
     fun cargarDatos() {
         scope.launch {
@@ -186,6 +186,16 @@ fun CommunityDetailScreen(
                         .height(180.dp)
                         .background(Color(0xFF1E293B))
                 ) {
+                    if (!comunidad?.urlBanner.isNullOrBlank()) {
+                        AsyncImage(
+                            model = "https://157.245.239.94${comunidad?.urlBanner}",
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            imageLoader = imageLoader
+                        )
+                    }
+                    
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(top=32.dp, start=8.dp, end=16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -215,7 +225,17 @@ fun CommunityDetailScreen(
                         .border(3.dp, Color.White, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Groups, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(40.dp))
+                    if (!comunidad?.urlBanner.isNullOrBlank()) {
+                        AsyncImage(
+                            model = "https://157.245.239.94${comunidad?.urlBanner}",
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            imageLoader = imageLoader
+                        )
+                    } else {
+                        Icon(Icons.Filled.Groups, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(40.dp))
+                    }
                 }
             }
         }
@@ -314,7 +334,7 @@ fun CommunityDetailScreen(
                             if (selectedImageUri != null) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Box(modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp))) {
-                                    AsyncImage(model = selectedImageUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                    AsyncImage(model = selectedImageUri, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, imageLoader = imageLoader)
                                     IconButton(onClick = { selectedImageUri = null }, modifier = Modifier.align(Alignment.TopEnd).size(20.dp).background(Color.Black.copy(alpha=0.5f), CircleShape)) {
                                         Icon(Icons.Filled.Close, null, tint = Color.White, modifier = Modifier.size(12.dp))
                                     }
@@ -440,7 +460,7 @@ fun CommunityDetailScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             if (miembro.foto != null) {
-                                AsyncImage(model = RetrofitClient.BASE_URL + miembro.foto, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                AsyncImage(model = "https://157.245.239.94" + miembro.foto, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop, imageLoader = imageLoader)
                             } else {
                                 Icon(Icons.Filled.Person, null, tint = Color.White)
                             }
