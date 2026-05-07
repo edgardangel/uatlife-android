@@ -426,12 +426,6 @@ fun ProfileScreen(
                             SettingsOptionRow(Icons.Filled.Person, "Configurar Perfil", onClick = onNavigateToEditProfile)
                             Divider(color = Color(0xFFF3F4F6))
                             SettingsOptionRow(Icons.Outlined.Lock, "Privacidad y Seguridad", onClick = onNavigateToSecurity)
-                            Divider(color = Color(0xFFF3F4F6))
-                            SettingsOptionRow(Icons.Outlined.Notifications, "Notificaciones", onClick = { })
-                            Divider(color = Color(0xFFF3F4F6))
-                            SettingsOptionRow(Icons.Outlined.HelpOutline, "Ayuda y Soporte", onClick = { })
-                            Divider(color = Color(0xFFF3F4F6))
-                            SettingsOptionRow(Icons.Outlined.Info, "Acerca de UATLife v2.0", onClick = { })
                         }
                     }
 
