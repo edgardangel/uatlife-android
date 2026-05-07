@@ -169,8 +169,7 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
                                 if (resp.isSuccessful) { 
                                     showCreateDialog = false; nuevoNombre = ""; nuevaDesc = ""; selectedImageUri = null; cargarComunidades() 
                                 } else {
-                                    val errorJson = resp.errorBody()?.string()
-                                    Toast.makeText(context, "Error: $errorJson", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Error al crear comunidad", Toast.LENGTH_SHORT).show()
                                 }
                             } catch (e: Exception) { 
                                 Toast.makeText(context, "Error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show() 
