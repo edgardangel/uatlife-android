@@ -213,7 +213,7 @@ fun ProfileScreen(
                                 ) {
                                     if (!p.urlFotoPerfil.isNullOrEmpty()) {
                                         AsyncImage(
-                                            model = "https://bd-uat-bus-api-uatlife-xazfaa-1b2660-157-245-239-94.traefik.me${p.urlFotoPerfil}",
+                                            model = "https://157.245.239.94${p.urlFotoPerfil}",
                                             contentDescription = "Foto de Perfil",
                                             modifier = Modifier.fillMaxSize(),
                                             contentScale = ContentScale.Crop,
@@ -365,18 +365,37 @@ fun ProfileScreen(
                                 if (isUploadingDoc) {
                                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = UATBlueDark)
                                 } else {
-                                    Text("Subir horario", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = UATBlueDark, modifier = Modifier.clickable { docPickerLauncher.launch("image/*") })
+                                    Text("Actualizar", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = UATBlueDark, modifier = Modifier.clickable { docPickerLauncher.launch("image/*") })
                                 }
                             }
                             Spacer(modifier = Modifier.height(14.dp))
-                            if (!p.urlHorario.isNullOrBlank()) {
-                                Box(modifier = Modifier.fillMaxWidth().height(48.dp).background(Color(0xFFEFF6FF), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Filled.Image, null, tint = UATBlueDark, modifier = Modifier.size(20.dp))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Horario disponible", fontSize = 14.sp, color = UATBlueDark, fontWeight = FontWeight.Medium)
-                                    }
+                            
+                            val displayUrl = p.urlHorario ?: p.urlFichaPago
+                            
+                            if (!displayUrl.isNullOrBlank()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(200.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFF3F4F6))
+                                ) {
+                                    AsyncImage(
+                                        model = "https://157.245.239.94$displayUrl",
+                                        contentDescription = "Mi Horario",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Fit,
+                                        imageLoader = imageLoader
+                                    )
                                 }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = if (p.urlHorario != null) "Imagen de horario actual" else "Ficha de pago registrada",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             } else {
                                 Box(
                                     modifier = Modifier.fillMaxWidth().height(120.dp).background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp)),

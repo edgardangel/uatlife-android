@@ -172,7 +172,7 @@ fun SellerProfileScreen(
                     ) {
                         if (perfil?.urlFotoPerfil != null) {
                             AsyncImage(
-                                model = RetrofitClient.BASE_URL + perfil?.urlFotoPerfil?.removePrefix("/"),
+                                model = "https://157.245.239.94${perfil?.urlFotoPerfil}",
                                 contentDescription = "Foto de perfil",
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop,
@@ -316,7 +316,7 @@ private fun MiProductoCard(
             ) {
                 if (producto.urlFotoPrincipal != null) {
                     AsyncImage(
-                        model = RetrofitClient.BASE_URL + producto.urlFotoPrincipal.removePrefix("/"),
+                        model = "https://157.245.239.94${producto.urlFotoPrincipal}",
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
