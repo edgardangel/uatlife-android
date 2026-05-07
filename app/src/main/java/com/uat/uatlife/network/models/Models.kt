@@ -87,6 +87,11 @@ data class AuthResponse(
     val usuario: UserProfile
 )
 
+data class UpdateProfileResponse(
+    val mensaje: String,
+    val usuario: UserProfile
+)
+
 data class VerifyOtpResponse(
     val mensaje: String,
     val resetToken: String?
@@ -272,6 +277,29 @@ data class UsuarioBusqueda(
     @SerializedName("url_foto_perfil") val urlFotoPerfil: String? = null,
     @SerializedName("facultad_id") val facultadId: Int? = null
 )
+
+data class ValidacionPendiente(
+    val id: Int,
+    @SerializedName("nombre_completo") val nombreCompleto: String,
+    val matricula: String,
+    @SerializedName("correo_institucional") val correoInstitucional: String,
+    @SerializedName("url_horario_img") val urlHorarioImg: String?,
+    @SerializedName("url_ficha_pago") val urlFichaPago: String?,
+    @SerializedName("created_at") val createdAt: String
+)
+
+data class UsuarioSancionado(
+    val id: Int,
+    @SerializedName("nombre_completo") val nombreCompleto: String,
+    val matricula: String,
+    @SerializedName("correo_institucional") val correoInstitucional: String,
+    @SerializedName("ban_permanente") val banPermanente: Boolean,
+    @SerializedName("suspension_hasta") val suspensionHasta: String?,
+    @SerializedName("motivo_sancion") val motivoSancion: String?,
+    @SerializedName("url_foto_perfil") val urlFotoPerfil: String?
+)
+
+data class ResolverValidacionRequest(val estatus: String)
 
 data class ErrorResponse(val error: String)
 data class ApiInfoResponse(val mensaje: String, val version: String)

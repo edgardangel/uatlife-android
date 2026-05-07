@@ -57,6 +57,9 @@ fun SellerProfileScreen(
     val misProductos = remember { mutableStateListOf<Producto>() }
     var perfil by remember { mutableStateOf<com.uat.uatlife.network.models.UserProfile?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    
+    // Estado para borrado
+    var productToDelete by remember { mutableStateOf<Producto?>(null) }
 
     fun refreshProducts() {
         isLoading = true
@@ -104,6 +107,44 @@ fun SellerProfileScreen(
             }
         }
     ) { padding ->
+        // Diálogo de confirmación de borrado
+        if (productToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { productToDelete = null },
+                title = { Text("¿Eliminar producto?", fontWeight = FontWeight.Bold) },
+                text = { Text("Esta acción eliminará definitivamente '${productToDelete?.titulo}'. No se puede deshacer.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val id = productToDelete?.id ?: return@Button
+                            productToDelete = null
+                            scope.launch {
+                                try {
+                                    val resp = apiService.eliminarProducto(id)
+                                    if (resp.isSuccessful) {
+                                        refreshProducts()
+                                        android.widget.Toast.makeText(context, "Producto eliminado", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(context, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                    ) {
+                        Text("Eliminar", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { productToDelete = null }) {
+                        Text("Cancelar", color = Color.Gray)
+                    }
+                },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = Color.White
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -212,6 +253,7 @@ fun SellerProfileScreen(
                             imageLoader = imageLoader,
                             onEdit = { onNavigateToEdit(prod.id) },
                             onNavigate = { onNavigateToProductDetail(prod.id) },
+                            onDelete = { productToDelete = prod },
                             onToggleStatus = {
                                 scope.launch {
                                     try {
@@ -252,6 +294,7 @@ private fun MiProductoCard(
     imageLoader: ImageLoader,
     onEdit: () -> Unit, 
     onNavigate: () -> Unit,
+    onDelete: () -> Unit,
     onToggleStatus: () -> Unit
 ) {
     Card(
@@ -309,6 +352,9 @@ private fun MiProductoCard(
                     IconButton(onClick = onEdit) {
                         Icon(Icons.Filled.Edit, contentDescription = "Editar", tint = Color.Gray, modifier = Modifier.size(20.dp))
                     }
+                    IconButton(onClick = onDelete) {
+                        Icon(Icons.Filled.Delete, contentDescription = "Eliminar", tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+                    }
                     Button(
                         onClick = onToggleStatus,
                         colors = ButtonDefaults.buttonColors(containerColor = UATOrange),
@@ -320,14 +366,19 @@ private fun MiProductoCard(
                     }
                 }
             } else {
-                OutlinedButton(
-                    onClick = onToggleStatus,
-                    border = BorderStroke(1.dp, UATOrange),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Text("Poner Disponible", fontSize = 11.sp, color = UATOrange, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onDelete) {
+                        Icon(Icons.Filled.Delete, contentDescription = "Eliminar", tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+                    }
+                    OutlinedButton(
+                        onClick = onToggleStatus,
+                        border = BorderStroke(1.dp, UATOrange),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("Poner Disponible", fontSize = 11.sp, color = UATOrange, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

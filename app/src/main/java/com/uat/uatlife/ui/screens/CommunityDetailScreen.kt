@@ -51,6 +51,7 @@ fun CommunityDetailScreen(
     val tokenManager = remember { TokenManager(context) }
     val currentUserId by tokenManager.getUserId().collectAsState(initial = null)
     val currentUserName by tokenManager.getUserName().collectAsState(initial = null)
+    val currentUserType by tokenManager.getUserType().collectAsState(initial = "alumno")
     val communityId = communityIdStr.toIntOrNull() ?: 0
 
     var comunidad by remember { mutableStateOf<Comunidad?>(null) }
@@ -151,8 +152,31 @@ fun CommunityDetailScreen(
                         .height(180.dp)
                         .background(Color(0xFF1E293B))
                 ) {
-                    IconButton(onClick = onBack, modifier = Modifier.padding(top=32.dp, start=8.dp)) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top=32.dp, start=8.dp, end=16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White)
+                        }
+                        if (currentUserType == "moderador") {
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                        try {
+                                            val resp = apiService.eliminarComunidad(communityId)
+                                            if (resp.isSuccessful) {
+                                                Toast.makeText(context, "Comunidad eliminada (Moderador)", Toast.LENGTH_SHORT).show()
+                                                onBack()
+                                            }
+                                        } catch (e: Exception) {}
+                                    }
+                                },
+                                modifier = Modifier.background(Color(0x80000000), CircleShape)
+                            ) {
+                                Icon(Icons.Filled.Delete, contentDescription = "Eliminar", tint = Color.Red)
+                            }
+                        }
                     }
                 }
 

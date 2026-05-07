@@ -70,6 +70,9 @@ import com.uat.uatlife.ui.theme.UATOnPrimaryLight
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
+import com.uat.uatlife.utils.ImageUtils
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 
 
 /**
@@ -433,14 +436,21 @@ fun RegisterScreen(
                             isLoading = true
                             scope.launch {
                                 try {
+                                    val nombreBody = nombreCompleto.trim().toRequestBody("text/plain".toMediaTypeOrNull())
+                                    val matriculaBody = matricula.trim().toRequestBody("text/plain".toMediaTypeOrNull())
+                                    val correoBody = correo.trim().toRequestBody("text/plain".toMediaTypeOrNull())
+                                    val passBody = password.toRequestBody("text/plain".toMediaTypeOrNull())
+                                    val facuBody = if (facultadId > 0) facultadId.toString().toRequestBody("text/plain".toMediaTypeOrNull()) else null
+                                    
+                                    val fichaPart = fichaPagoUri?.let { ImageUtils.uriToMultipart(context, it, "ficha") }
+
                                     val response = apiService.register(
-                                        RegisterRequest(
-                                            nombreCompleto = nombreCompleto.trim(),
-                                            matricula = matricula.trim(),
-                                            correoInstitucional = correo.trim(),
-                                            password = password,
-                                            facultadId = if (facultadId > 0) facultadId else null
-                                        )
+                                        nombre = nombreBody,
+                                        matricula = matriculaBody,
+                                        correo = correoBody,
+                                        password = passBody,
+                                        facultadId = facuBody,
+                                        ficha = fichaPart
                                     )
                                     if (response.isSuccessful) {
                                         val body = response.body()!!

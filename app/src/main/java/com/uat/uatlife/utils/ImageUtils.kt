@@ -12,8 +12,17 @@ import java.io.InputStream
 object ImageUtils {
     fun uriToMultipart(context: Context, uri: Uri, partName: String): MultipartBody.Part? {
         return try {
-            val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-            val tempFile = File.createTempFile("upload", ".jpg", context.cacheDir)
+            val contentResolver = context.contentResolver
+            val mimeType = contentResolver.getType(uri) ?: "application/octet-stream"
+            val extension = when (mimeType) {
+                "application/pdf" -> ".pdf"
+                "image/png" -> ".png"
+                "image/webp" -> ".webp"
+                else -> ".jpg"
+            }
+            
+            val inputStream: InputStream? = contentResolver.openInputStream(uri)
+            val tempFile = File.createTempFile("upload", extension, context.cacheDir)
             tempFile.deleteOnExit()
             
             val outputStream = FileOutputStream(tempFile)
@@ -21,7 +30,7 @@ object ImageUtils {
             inputStream?.close()
             outputStream.close()
             
-            val requestFile = tempFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
+            val requestFile = tempFile.asRequestBody(mimeType.toMediaTypeOrNull())
             MultipartBody.Part.createFormData(partName, tempFile.name, requestFile)
         } catch (e: Exception) {
             e.printStackTrace()

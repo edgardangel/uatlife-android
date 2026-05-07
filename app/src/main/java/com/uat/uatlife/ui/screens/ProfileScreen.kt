@@ -34,11 +34,18 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.uat.uatlife.utils.ImageUtils
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     onNavigateToEditProfile: () -> Unit,
     onNavigateToSecurity: () -> Unit,
+    onNavigateToModeration: () -> Unit,
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
@@ -62,6 +69,7 @@ fun ProfileScreen(
 
     // Mis productos vendidos (conteo)
     var totalVentas by remember { mutableStateOf(0) }
+    var isUploadingDoc by remember { mutableStateOf(false) }
 
     fun cargarPerfil() {
         coroutineScope.launch {
@@ -95,6 +103,32 @@ fun ProfileScreen(
                     totalVentas = resp.body()?.count { it.estaVendido } ?: 0
                 }
             } catch (_: Exception) { }
+        }
+    }
+
+    val docPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        if (uri != null) {
+            isUploadingDoc = true
+            coroutineScope.launch {
+                try {
+                    val part = ImageUtils.uriToMultipart(context, uri, "imagen")
+                    if (part != null) {
+                        val resp = apiService.uploadDocumento(part)
+                        if (resp.isSuccessful) {
+                            Toast.makeText(context, "Documento subido. En espera de validación.", Toast.LENGTH_LONG).show()
+                            cargarPerfil() // Recargar para actualizar el estatus y la URL
+                        } else {
+                            Toast.makeText(context, "Error al subir documento", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Error de red: ${e.message}", Toast.LENGTH_SHORT).show()
+                } finally {
+                    isUploadingDoc = false
+                }
+            }
         }
     }
 
@@ -328,7 +362,11 @@ fun ProfileScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Mi Horario", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                                 }
-                                Text("Subir horario", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = UATBlueDark, modifier = Modifier.clickable { })
+                                if (isUploadingDoc) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = UATBlueDark)
+                                } else {
+                                    Text("Subir horario", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = UATBlueDark, modifier = Modifier.clickable { docPickerLauncher.launch("image/*") })
+                                }
                             }
                             Spacer(modifier = Modifier.height(14.dp))
                             if (!p.urlHorario.isNullOrBlank()) {
@@ -386,7 +424,7 @@ fun ProfileScreen(
                             border = androidx.compose.foundation.BorderStroke(1.dp, UATOrange),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            SettingsOptionRow(Icons.Filled.AdminPanelSettings, "Panel de Moderación 🚨", onClick = { })
+                            SettingsOptionRow(Icons.Filled.AdminPanelSettings, "Panel de Moderación 🚨", onClick = onNavigateToModeration)
                         }
                     }
 

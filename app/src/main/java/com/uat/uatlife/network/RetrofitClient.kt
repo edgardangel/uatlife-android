@@ -26,14 +26,14 @@ import coil.ImageLoader
  */
 object RetrofitClient {
 
-    // URL base del backend desplegado en Dokploy
-    const val BASE_URL = "https://bd-uat-bus-api-uatlife-xazfaa-1b2660-157-245-239-94.traefik.me/"
+    // URL base por IP para evitar caídas de DNS de traefik.me
+    const val BASE_URL = "https://157.245.239.94/"
+    private const val ORIGINAL_HOST = "bd-uat-bus-api-uatlife-xazfaa-1b2660-157-245-239-94.traefik.me"
 
     private var apiService: ApiService? = null
 
     /**
      * TrustManager que acepta cualquier certificado SSL.
-     * Necesario para el certificado wildcard de traefik.me en desarrollo.
      */
     val unsafeTrustManager = object : X509TrustManager {
         override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
@@ -48,6 +48,12 @@ object RetrofitClient {
         return OkHttpClient.Builder()
             .sslSocketFactory(sslContext.socketFactory, unsafeTrustManager)
             .hostnameVerifier { _, _ -> true }
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .header("Host", ORIGINAL_HOST)
+                    .build()
+                chain.proceed(request)
+            }
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
@@ -59,14 +65,14 @@ object RetrofitClient {
         // Interceptor JWT y control de expiración global
         val authInterceptor = Interceptor { chain ->
             val token = runBlocking { tokenManager.getToken().first() }
-            val request = if (token != null) {
-                chain.request().newBuilder()
-                    .addHeader("Authorization", "Bearer $token")
-                    .build()
-            } else {
-                chain.request()
+            val requestBuilder = chain.request().newBuilder()
+                .header("Host", ORIGINAL_HOST)
+            
+            if (token != null) {
+                requestBuilder.addHeader("Authorization", "Bearer $token")
             }
-            val response = chain.proceed(request)
+            
+            val response = chain.proceed(requestBuilder.build())
             
             // Si el backend rechaza el token por inválido (403) o expirado (401), limpiamos la sesión
             if (response.code == 401 || response.code == 403) {
@@ -90,7 +96,7 @@ object RetrofitClient {
             .addInterceptor(authInterceptor)
             .addInterceptor(loggingInterceptor)
             .sslSocketFactory(sslContext.socketFactory, unsafeTrustManager)
-            .hostnameVerifier { _, _ -> true } // Acepta cualquier hostname de traefik.me
+            .hostnameVerifier { _, _ -> true }
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -99,7 +105,6 @@ object RetrofitClient {
 
     /**
      * Obtiene la instancia de ApiService.
-     * Requiere Context para acceder al TokenManager (DataStore).
      */
     fun getApiService(context: Context): ApiService {
         if (apiService == null) {

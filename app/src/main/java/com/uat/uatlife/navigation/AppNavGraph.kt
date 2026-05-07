@@ -217,6 +217,7 @@ fun AppNavGraph(
             ProfileScreen(
                 onNavigateToEditProfile = { navController.navigate(Screen.EditProfile.route) },
                 onNavigateToSecurity = { navController.navigate(Screen.SecuritySettings.route) },
+                onNavigateToModeration = { navController.navigate(Screen.ModerationPanel.route) },
                 onLogout = {
                     navController.navigate(Screen.Welcome.route) {
                         popUpTo(0) { inclusive = true }
@@ -243,6 +244,11 @@ fun AppNavGraph(
             val id = backStackEntry.arguments?.getString("id") ?: ""
             CommunityDetailScreen(
                 communityIdStr = id,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.ModerationPanel.route) {
+            ModerationPanelScreen(
                 onBack = { navController.popBackStack() }
             )
         }

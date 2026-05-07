@@ -12,8 +12,16 @@ interface ApiService {
 
     // ==================== AUTENTICACIÓN ====================
 
+    @Multipart
     @POST("api/auth/register")
-    suspend fun register(@Body request: RegisterRequest): Response<AuthResponse>
+    suspend fun register(
+        @Part("nombre_completo") nombre: okhttp3.RequestBody,
+        @Part("matricula") matricula: okhttp3.RequestBody,
+        @Part("correo_institucional") correo: okhttp3.RequestBody,
+        @Part("password") password: okhttp3.RequestBody,
+        @Part("facultad_id") facultadId: okhttp3.RequestBody?,
+        @Part ficha: okhttp3.MultipartBody.Part?
+    ): Response<AuthResponse>
 
     @POST("api/auth/login")
     suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
@@ -24,10 +32,16 @@ interface ApiService {
     @Multipart
     @PUT("api/auth/profile")
     suspend fun updateProfile(
-        @Part("nombre_completo") nombre: okhttp3.RequestBody?,
+        @Part("nombre_completo") nombreCompleto: okhttp3.RequestBody?,
         @Part("bio") bio: okhttp3.RequestBody?,
         @Part foto: okhttp3.MultipartBody.Part?
-    ): Response<AuthResponse>
+    ): Response<com.uat.uatlife.network.models.UpdateProfileResponse>
+
+    @Multipart
+    @POST("api/auth/profile/documento")
+    suspend fun uploadDocumento(
+        @Part imagen: okhttp3.MultipartBody.Part
+    ): Response<MensajeResponse>
 
     @PUT("api/auth/security")
     suspend fun updateSecurityInfo(@Body request: okhttp3.RequestBody): Response<MensajeResponse>
@@ -172,6 +186,9 @@ interface ApiService {
     @DELETE("api/comunidades/{id}/salir")
     suspend fun salirDeComunidad(@Path("id") id: Int): Response<MensajeResponse>
 
+    @DELETE("api/comunidades/{id}")
+    suspend fun eliminarComunidad(@Path("id") id: Int): Response<MensajeResponse>
+
     // ==================== MODERACIÓN ====================
 
     @POST("api/moderacion/reportes")
@@ -179,4 +196,19 @@ interface ApiService {
 
     @GET("api/moderacion/estadisticas")
     suspend fun getEstadisticas(): Response<EstadisticasResponse>
+
+    @GET("api/moderacion/validaciones")
+    suspend fun getValidacionesPendientes(): Response<List<ValidacionPendiente>>
+
+    @PUT("api/moderacion/validaciones/{id}")
+    suspend fun resolverValidacion(
+        @Path("id") id: Int,
+        @Body request: ResolverValidacionRequest
+    ): Response<MensajeResponse>
+
+    @GET("api/moderacion/sancionados")
+    suspend fun getSancionados(): Response<List<UsuarioSancionado>>
+
+    @POST("api/moderacion/sancionar")
+    suspend fun sancionarUsuario(@Body request: okhttp3.RequestBody): Response<MensajeResponse>
 }
