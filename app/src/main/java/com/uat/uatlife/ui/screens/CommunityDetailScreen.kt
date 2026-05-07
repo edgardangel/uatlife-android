@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,9 +30,17 @@ import kotlinx.coroutines.launch
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import com.uat.uatlife.network.RetrofitClient
+import com.uat.uatlife.network.models.Comunidad
+import com.uat.uatlife.network.models.MiembroComunidad
+import com.uat.uatlife.data.TokenManager
+import com.uat.uatlife.network.models.Publicacion
+import com.uat.uatlife.network.models.ReaccionRequest
+import com.uat.uatlife.network.models.CrearReporteRequest
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import com.uat.uatlife.ui.components.*
 
 @Composable
 fun CommunityDetailScreen(
