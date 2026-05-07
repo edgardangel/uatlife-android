@@ -28,6 +28,9 @@ import com.uat.uatlife.ui.theme.UATBlueDark
 import com.uat.uatlife.ui.theme.UATOrange
 import kotlinx.coroutines.launch
 import coil.compose.rememberAsyncImagePainter
+import coil.ImageLoader
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 
@@ -50,6 +53,12 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
     var nuevoTipo by remember { mutableStateOf("publica") }
     var selectedImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var isCreating by remember { mutableStateOf(false) }
+
+    val imageLoader = remember {
+        ImageLoader.Builder(context)
+            .okHttpClient { RetrofitClient.getUnsafeOkHttpClient() }
+            .build()
+    }
 
     val imagePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
@@ -121,7 +130,7 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
                     ) {
                         if (selectedImageUri != null) {
                             androidx.compose.foundation.Image(
-                                painter = rememberAsyncImagePainter(selectedImageUri),
+                                painter = rememberAsyncImagePainter(model = selectedImageUri, imageLoader = imageLoader),
                                 contentDescription = null,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
@@ -220,7 +229,7 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
                 if (misComunidades.isNotEmpty()) {
                     item { Spacer(modifier = Modifier.height(4.dp)); Text("Mis Comunidades (${misComunidades.size})", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray) }
                     items(misComunidades, key = { it.id }) { com ->
-                        ComunidadCard(com, esMiembro = true, onClick = { onNavigateToCommunity(com.id.toString()) },
+                        ComunidadCard(com, esMiembro = true, imageLoader = imageLoader, onClick = { onNavigateToCommunity(com.id.toString()) },
                             onAction = { showLeaveDialogFor = com })
                     }
                 }
@@ -228,7 +237,7 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
                 if (sugeridas.isNotEmpty()) {
                     item { Spacer(modifier = Modifier.height(4.dp)); Text("Descubrir Comunidades", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray) }
                     items(sugeridas, key = { it.id }) { com ->
-                        ComunidadCard(com, esMiembro = false, onClick = { onNavigateToCommunity(com.id.toString()) },
+                        ComunidadCard(com, esMiembro = false, imageLoader = imageLoader, onClick = { onNavigateToCommunity(com.id.toString()) },
                             onAction = {
                                 scope.launch {
                                     try { apiService.unirseAComunidad(com.id); cargarComunidades() }
@@ -281,7 +290,7 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
 }
 
 @Composable
-fun ComunidadCard(comunidad: Comunidad, esMiembro: Boolean, onClick: () -> Unit, onAction: () -> Unit) {
+fun ComunidadCard(comunidad: Comunidad, esMiembro: Boolean, imageLoader: ImageLoader, onClick: () -> Unit, onAction: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = if (esMiembro) Color(0xFFF0F7FF) else Color.White),
@@ -295,11 +304,12 @@ fun ComunidadCard(comunidad: Comunidad, esMiembro: Boolean, onClick: () -> Unit,
                 contentAlignment = Alignment.Center
             ) {
                 if (!comunidad.urlBanner.isNullOrBlank()) {
-                    coil.compose.AsyncImage(
+                    AsyncImage(
                         model = "https://157.245.239.94${comunidad.urlBanner}",
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        imageLoader = imageLoader
                     )
                 } else {
                     Icon(if (comunidad.esOficial) Icons.Filled.Verified else Icons.Filled.Group, null, tint = Color.White)
