@@ -27,6 +27,9 @@ import com.uat.uatlife.ui.theme.UATBlue
 import com.uat.uatlife.ui.theme.UATBlueDark
 import com.uat.uatlife.ui.theme.UATOrange
 import kotlinx.coroutines.launch
+import coil.compose.rememberAsyncImagePainter
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,7 +121,7 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
                     ) {
                         if (selectedImageUri != null) {
                             androidx.compose.foundation.Image(
-                                painter = androidx.compose.ui.res.rememberAsyncImagePainter(selectedImageUri),
+                                painter = rememberAsyncImagePainter(selectedImageUri),
                                 contentDescription = null,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
@@ -142,16 +145,16 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
                         isCreating = true
                         scope.launch {
                             try {
-                                val nombrePart = okhttp3.RequestBody.create(okhttp3.MediaType.parse("text/plain"), nuevoNombre.trim())
-                                val descPart = okhttp3.RequestBody.create(okhttp3.MediaType.parse("text/plain"), nuevaDesc.trim())
-                                val tipoPart = okhttp3.RequestBody.create(okhttp3.MediaType.parse("text/plain"), nuevoTipo)
+                                val nombrePart = nuevoNombre.trim().toRequestBody("text/plain".toMediaTypeOrNull())
+                                val descPart = nuevaDesc.trim().toRequestBody("text/plain".toMediaTypeOrNull())
+                                val tipoPart = nuevoTipo.toRequestBody("text/plain".toMediaTypeOrNull())
                                 
                                 var imagePart: okhttp3.MultipartBody.Part? = null
                                 selectedImageUri?.let { uri ->
                                     val inputStream = context.contentResolver.openInputStream(uri)
                                     val bytes = inputStream?.readBytes()
                                     if (bytes != null) {
-                                        val requestFile = okhttp3.RequestBody.create(okhttp3.MediaType.parse("image/*"), bytes)
+                                        val requestFile = bytes.toRequestBody("image/*".toMediaTypeOrNull())
                                         imagePart = okhttp3.MultipartBody.Part.createFormData("imagen", "comunidad_${System.currentTimeMillis()}.jpg", requestFile)
                                     }
                                 }
