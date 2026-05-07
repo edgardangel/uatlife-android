@@ -177,8 +177,15 @@ interface ApiService {
     @GET("api/comunidades/{id}/miembros")
     suspend fun getMiembros(@Path("id") id: Int): Response<List<MiembroComunidad>>
 
+    @Multipart
     @POST("api/comunidades")
-    suspend fun crearComunidad(@Body request: CrearComunidadRequest): Response<CrearComunidadResponse>
+    suspend fun crearComunidad(
+        @Part("nombre") nombre: okhttp3.RequestBody,
+        @Part("descripcion") descripcion: okhttp3.RequestBody?,
+        @Part("tipo") tipo: okhttp3.RequestBody?,
+        @Part("facultad_id") facultadId: okhttp3.RequestBody?,
+        @Part imagen: okhttp3.MultipartBody.Part?
+    ): Response<CrearComunidadResponse>
 
     @POST("api/comunidades/{id}/unirse")
     suspend fun unirseAComunidad(@Path("id") id: Int): Response<MensajeResponse>

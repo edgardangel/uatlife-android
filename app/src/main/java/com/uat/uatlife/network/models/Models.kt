@@ -245,6 +245,7 @@ data class Comunidad(
     val tipo: String,
     @SerializedName("es_oficial") val esOficial: Boolean,
     @SerializedName("url_banner") val urlBanner: String?,
+    @SerializedName("url_imagen") val urlImagen: String? = null,
     @SerializedName("total_miembros") val totalMiembros: Int,
     @SerializedName("es_miembro") val esMiembro: Boolean
 )

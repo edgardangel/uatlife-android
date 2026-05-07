@@ -45,7 +45,12 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
     var nuevoNombre by remember { mutableStateOf("") }
     var nuevaDesc by remember { mutableStateOf("") }
     var nuevoTipo by remember { mutableStateOf("publica") }
+    var selectedImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var isCreating by remember { mutableStateOf(false) }
+
+    val imagePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? -> selectedImageUri = uri }
 
     fun cargarComunidades() {
         scope.launch {
@@ -98,6 +103,36 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("Imagen de portada:", fontSize = 13.sp, color = UATBlueDark, fontWeight = FontWeight.Medium)
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF3F4F6))
+                            .clickable { imagePickerLauncher.launch("image/*") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (selectedImageUri != null) {
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.rememberAsyncImagePainter(selectedImageUri),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Filled.Edit, "Cambiar", tint = Color.White)
+                            }
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Filled.AddPhotoAlternate, "Subir foto", tint = Color.Gray, modifier = Modifier.size(32.dp))
+                                Text("Añadir foto de portada", fontSize = 12.sp, color = Color.Gray)
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -107,11 +142,35 @@ fun CommunitiesScreen(onNavigateToCommunity: (String) -> Unit) {
                         isCreating = true
                         scope.launch {
                             try {
-                                val resp = apiService.crearComunidad(CrearComunidadRequest(nombre = nuevoNombre.trim(), descripcion = nuevaDesc.ifBlank { null }, tipo = nuevoTipo))
-                                if (resp.isSuccessful) { showCreateDialog = false; nuevoNombre = ""; nuevaDesc = ""; cargarComunidades() }
-                                else Toast.makeText(context, "Error al crear comunidad", Toast.LENGTH_SHORT).show()
-                            } catch (_: Exception) { Toast.makeText(context, "Sin conexión", Toast.LENGTH_SHORT).show() }
-                            finally { isCreating = false }
+                                val nombrePart = okhttp3.RequestBody.create(okhttp3.MediaType.parse("text/plain"), nuevoNombre.trim())
+                                val descPart = okhttp3.RequestBody.create(okhttp3.MediaType.parse("text/plain"), nuevaDesc.trim())
+                                val tipoPart = okhttp3.RequestBody.create(okhttp3.MediaType.parse("text/plain"), nuevoTipo)
+                                
+                                var imagePart: okhttp3.MultipartBody.Part? = null
+                                selectedImageUri?.let { uri ->
+                                    val inputStream = context.contentResolver.openInputStream(uri)
+                                    val bytes = inputStream?.readBytes()
+                                    if (bytes != null) {
+                                        val requestFile = okhttp3.RequestBody.create(okhttp3.MediaType.parse("image/*"), bytes)
+                                        imagePart = okhttp3.MultipartBody.Part.createFormData("imagen", "comunidad_${System.currentTimeMillis()}.jpg", requestFile)
+                                    }
+                                }
+
+                                val resp = apiService.crearComunidad(
+                                    nombre = nombrePart,
+                                    descripcion = descPart,
+                                    tipo = tipoPart,
+                                    facultadId = null,
+                                    imagen = imagePart
+                                )
+                                if (resp.isSuccessful) { 
+                                    showCreateDialog = false; nuevoNombre = ""; nuevaDesc = ""; selectedImageUri = null; cargarComunidades() 
+                                } else {
+                                    Toast.makeText(context, "Error al crear comunidad", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) { 
+                                Toast.makeText(context, "Error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show() 
+                            } finally { isCreating = false }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = UATOrange), enabled = !isCreating
@@ -232,7 +291,16 @@ fun ComunidadCard(comunidad: Comunidad, esMiembro: Boolean, onClick: () -> Unit,
                     .background(when (comunidad.tipo) { "oficial" -> UATOrange; "privada" -> Color(0xFF6B7280); else -> UATBlueDark }),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(if (comunidad.esOficial) Icons.Filled.Verified else Icons.Filled.Group, null, tint = Color.White)
+                if (!comunidad.urlImagen.isNullOrBlank()) {
+                    coil.compose.AsyncImage(
+                        model = "https://157.245.239.94${comunidad.urlImagen}",
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                } else {
+                    Icon(if (comunidad.esOficial) Icons.Filled.Verified else Icons.Filled.Group, null, tint = Color.White)
+                }
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
