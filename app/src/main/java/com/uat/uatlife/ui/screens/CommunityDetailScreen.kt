@@ -401,6 +401,20 @@ fun CommunityDetailScreen(
                                         Toast.makeText(context, "Error al eliminar", Toast.LENGTH_SHORT).show()
                                     }
                                 }
+                            },
+                            onReportar = { motivo, desc ->
+                                scope.launch {
+                                    try {
+                                        val resp = apiService.crearReporte(CrearReporteRequest("publicacion", pub.id, motivo, desc))
+                                        if (resp.isSuccessful) {
+                                            Toast.makeText(context, "Reporte enviado. Gracias por tu ayuda.", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Error al enviar reporte", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error de red", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                             }
                         )
                     }

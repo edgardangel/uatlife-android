@@ -70,6 +70,25 @@ data class ReporteBusRequest(
     val descripcion: String
 )
 
+data class Reporte(
+    val id: Int,
+    @SerializedName("tipo_objetivo") val tipoObjetivo: String,
+    @SerializedName("objetivo_id") val objetivoId: Int,
+    val motivo: String,
+    val descripcion: String?,
+    val estado: String,
+    @SerializedName("created_at") val createdAt: String,
+    @SerializedName("reportado_por_nombre") val reportadoPorNombre: String,
+    @SerializedName("contenido_snippet") val contenidoSnippet: String?,
+    @SerializedName("reportado_usuario_id") val reportadoUsuarioId: Int?,
+    @SerializedName("reportado_usuario_nombre") val reportadoUsuarioNombre: String?
+)
+
+data class ResolverReporteRequest(
+    val resolucion: String,
+    val estado: String = "resuelto"
+)
+
 data class CrearReporteRequest(
     @SerializedName("tipo_objetivo") val tipoObjetivo: String,
     @SerializedName("objetivo_id") val objetivoId: Int,

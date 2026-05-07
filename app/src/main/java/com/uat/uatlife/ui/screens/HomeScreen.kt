@@ -421,6 +421,20 @@ fun HomeScreen() {
                                         Toast.makeText(context, "Error al eliminar", Toast.LENGTH_SHORT).show()
                                     }
                                 }
+                            },
+                            onReportar = { motivo, desc ->
+                                scope.launch {
+                                    try {
+                                        val resp = apiService.crearReporte(CrearReporteRequest("publicacion", pub.id, motivo, desc))
+                                        if (resp.isSuccessful) {
+                                            Toast.makeText(context, "Reporte enviado correctamente", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "No se pudo enviar el reporte", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error de red", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                             }
                         )
                     }

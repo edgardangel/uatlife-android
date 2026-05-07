@@ -35,9 +35,12 @@ fun PostCard(
     esPropietario: Boolean = false,
     onReaccion: () -> Unit,
     onComentar: () -> Unit,
-    onEliminar: () -> Unit
+    onEliminar: () -> Unit,
+    onReportar: (motivo: String, desc: String) -> Unit
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
 
     if (showDeleteConfirm) {
         AlertDialog(
@@ -52,6 +55,16 @@ fun PostCard(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    if (showReportDialog) {
+        ReportDialog(
+            onDismiss = { showReportDialog = false },
+            onConfirm = { motivo, desc ->
+                showReportDialog = false
+                onReportar(motivo, desc)
             }
         )
     }
@@ -98,9 +111,30 @@ fun PostCard(
                         }
                     }
                 }
-                if (esModerador || esPropietario) {
-                    IconButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Filled.Delete, "Eliminar", tint = Color(0xFFE11D48), modifier = Modifier.size(18.dp))
+                
+                Box {
+                    IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Filled.MoreVert, "Opciones", tint = Color.Gray, modifier = Modifier.size(18.dp))
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        modifier = Modifier.background(Color.White)
+                    ) {
+                        if (esModerador || esPropietario) {
+                            DropdownMenuItem(
+                                text = { Text("Eliminar", color = Color(0xFFE11D48)) },
+                                onClick = { showMenu = false; showDeleteConfirm = true },
+                                leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Color(0xFFE11D48), modifier = Modifier.size(18.dp)) }
+                            )
+                        }
+                        if (!esPropietario) {
+                            DropdownMenuItem(
+                                text = { Text("Reportar") },
+                                onClick = { showMenu = false; showReportDialog = true },
+                                leadingIcon = { Icon(Icons.Filled.Report, null, tint = Color.Gray, modifier = Modifier.size(18.dp)) }
+                            )
+                        }
                     }
                 }
             }

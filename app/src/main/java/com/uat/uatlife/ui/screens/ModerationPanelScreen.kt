@@ -43,28 +43,39 @@ fun ModerationPanelScreen(onBack: () -> Unit) {
     val apiService = remember { RetrofitClient.getApiService(context) }
 
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Validaciones", "Sancionados")
+    val tabs = listOf("Validaciones", "Sancionados", "Reportes")
 
     // Estados
     var isLoading by remember { mutableStateOf(false) }
     val validaciones = remember { mutableStateListOf<ValidacionPendiente>() }
     val sancionados = remember { mutableStateListOf<UsuarioSancionado>() }
+    val reportes = remember { mutableStateListOf<com.uat.uatlife.network.models.Reporte>() }
 
     fun cargarDatos() {
         isLoading = true
         scope.launch {
             try {
-                if (selectedTab == 0) {
-                    val resp = apiService.getValidacionesPendientes()
-                    if (resp.isSuccessful) {
-                        validaciones.clear()
-                        validaciones.addAll(resp.body() ?: emptyList())
+                when (selectedTab) {
+                    0 -> {
+                        val resp = apiService.getValidacionesPendientes()
+                        if (resp.isSuccessful) {
+                            validaciones.clear()
+                            validaciones.addAll(resp.body() ?: emptyList())
+                        }
                     }
-                } else if (selectedTab == 1) {
-                    val resp = apiService.getSancionados()
-                    if (resp.isSuccessful) {
-                        sancionados.clear()
-                        sancionados.addAll(resp.body() ?: emptyList())
+                    1 -> {
+                        val resp = apiService.getSancionados()
+                        if (resp.isSuccessful) {
+                            sancionados.clear()
+                            sancionados.addAll(resp.body() ?: emptyList())
+                        }
+                    }
+                    2 -> {
+                        val resp = apiService.getReportes("pendiente")
+                        if (resp.isSuccessful) {
+                            reportes.clear()
+                            reportes.addAll(resp.body() ?: emptyList())
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -146,29 +157,28 @@ fun ModerationPanelScreen(onBack: () -> Unit) {
                                 )
                             }
                         }
-                    } else if (selectedTab == 1) {
-                        if (sancionados.isEmpty()) {
-                            item { Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { Text("No hay usuarios sancionados", color = Color.Gray) } }
+                        }
+                    } else if (selectedTab == 2) {
+                        if (reportes.isEmpty()) {
+                            item { Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) { Text("No hay reportes pendientes", color = Color.Gray) } }
                         } else {
-                            items(sancionados) { u ->
-                                SancionadoCard(
-                                    usuario = u,
-                                    onRevocar = {
+                            items(reportes) { r ->
+                                ReporteCard(
+                                    reporte = r,
+                                    onResolver = { resolucion ->
                                         scope.launch {
                                             try {
-                                                val json = JSONObject().apply {
-                                                    put("usuario_id", u.id)
-                                                    put("tipo_sancion", "levantamiento")
-                                                    put("motivo", "Revocado por moderador")
-                                                }.toString()
-                                                val body = json.toRequestBody("application/json".toMediaTypeOrNull())
-                                                val resp = apiService.sancionarUsuario(body)
+                                                val resp = apiService.resolverReporte(r.id, com.uat.uatlife.network.models.ResolverReporteRequest(resolucion))
                                                 if (resp.isSuccessful) {
-                                                    Toast.makeText(context, "Sanción revocada", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "Reporte resuelto", Toast.LENGTH_SHORT).show()
                                                     cargarDatos()
                                                 }
                                             } catch (e: Exception) {}
                                         }
+                                    },
+                                    onHablar = {
+                                        // TODO: Navegar a chat con r.reportadoUsuarioId
+                                        Toast.makeText(context, "Funcionalidad de chat para moderadores en desarrollo", Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             }
@@ -270,6 +280,84 @@ private fun SancionadoCard(usuario: UsuarioSancionado, onRevocar: () -> Unit) {
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text("Revocar Sanción", color = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReporteCard(
+    reporte: com.uat.uatlife.network.models.Reporte,
+    onResolver: (resolucion: String) -> Unit,
+    onHablar: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Report, null, tint = UATOrange, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Reporte #${reporte.id}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = UATBlueDark)
+                Spacer(modifier = Modifier.weight(1f))
+                Text(reporte.createdAt.take(10), fontSize = 11.sp, color = Color.Gray)
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Motivo: ${reporte.motivo.replace("_", " ").uppercase()}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.Black)
+            if (!reporte.descripcion.isNullOrBlank()) {
+                Text(reporte.descripcion, fontSize = 13.sp, color = Color.DarkGray)
+            }
+            
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF3F4F6))
+            
+            Text("Contenido reportado:", fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.SemiBold)
+            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp)).padding(8.dp)) {
+                Text(reporte.contenidoSnippet ?: "Contenido no disponible o multimedia", fontSize = 13.sp, color = Color.Black)
+            }
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Autor: ${reporte.reportadoUsuarioNombre ?: "Desconocido"}", fontSize = 12.sp, color = UATBlueDark, fontWeight = FontWeight.Medium)
+            Text("Reportado por: ${reporte.reportadoPorNombre}", fontSize = 11.sp, color = Color.Gray)
+
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = { onResolver("Descartado por el moderador") },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Descartar", color = Color.White, fontSize = 12.sp)
+                }
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                Button(
+                    onClick = onHablar,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = UATBlueDark),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Filled.Chat, null, modifier = Modifier.size(14.dp), tint = Color.White)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Hablar", color = Color.White, fontSize = 12.sp)
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                Button(
+                    onClick = { onResolver("Sanción aplicada") },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Sancionar", color = Color.White, fontSize = 12.sp)
+                }
             }
         }
     }

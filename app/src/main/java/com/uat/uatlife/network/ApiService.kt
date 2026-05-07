@@ -194,6 +194,15 @@ interface ApiService {
     @POST("api/moderacion/reportes")
     suspend fun crearReporte(@Body request: CrearReporteRequest): Response<MensajeResponse>
 
+    @GET("api/moderacion/reportes")
+    suspend fun getReportes(@Query("estado") estado: String = "pendiente"): Response<List<Reporte>>
+
+    @PUT("api/moderacion/reportes/{id}/resolver")
+    suspend fun resolverReporte(
+        @Path("id") id: Int,
+        @Body request: ResolverReporteRequest
+    ): Response<MensajeResponse>
+
     @GET("api/moderacion/estadisticas")
     suspend fun getEstadisticas(): Response<EstadisticasResponse>
 
