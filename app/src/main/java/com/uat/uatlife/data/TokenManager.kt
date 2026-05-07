@@ -26,6 +26,7 @@ class TokenManager(private val context: Context) {
         private val USER_ID_KEY = stringPreferencesKey("user_id")
         private val BAN_PERMANENTE_KEY = stringPreferencesKey("ban_permanente")
         private val SUSPENSION_HASTA_KEY = stringPreferencesKey("suspension_hasta")
+        private val ESTATUS_VALIDACION_KEY = stringPreferencesKey("estatus_validacion")
     }
 
     /**
@@ -47,7 +48,8 @@ class TokenManager(private val context: Context) {
         tipoUsuario: String, 
         userId: Int,
         banPermanente: Boolean = false,
-        suspensionHasta: String? = null
+        suspensionHasta: String? = null,
+        estatusValidacion: String = "pendiente"
     ) {
         context.dataStore.edit { preferences ->
             preferences[TOKEN_KEY] = token
@@ -57,6 +59,7 @@ class TokenManager(private val context: Context) {
             preferences[USER_ID_KEY] = userId.toString()
             preferences[BAN_PERMANENTE_KEY] = banPermanente.toString()
             preferences[SUSPENSION_HASTA_KEY] = suspensionHasta ?: ""
+            preferences[ESTATUS_VALIDACION_KEY] = estatusValidacion
         }
     }
 
@@ -125,12 +128,24 @@ class TokenManager(private val context: Context) {
     }
 
     /**
-     * Actualiza el estado de sanción.
+     * Obtiene el estatus de validación.
      */
-    suspend fun updateSanctionStatus(ban: Boolean, suspension: String?) {
+    fun getEstatusValidacion(): Flow<String> {
+        return context.dataStore.data.map { preferences ->
+            preferences[ESTATUS_VALIDACION_KEY] ?: "pendiente"
+        }
+    }
+
+    /**
+     * Actualiza el estado de sanción y validación.
+     */
+    suspend fun updateSanctionStatus(ban: Boolean, suspension: String?, estatus: String? = null) {
         context.dataStore.edit { preferences ->
             preferences[BAN_PERMANENTE_KEY] = ban.toString()
             preferences[SUSPENSION_HASTA_KEY] = suspension ?: ""
+            if (estatus != null) {
+                preferences[ESTATUS_VALIDACION_KEY] = estatus
+            }
         }
     }
 

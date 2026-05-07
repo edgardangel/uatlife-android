@@ -49,16 +49,14 @@ class MainActivity : ComponentActivity() {
                 // Estado de sanción
                 val banPermanente by tokenManager.getBanPermanente().collectAsState(initial = false)
                 val suspensionHasta by tokenManager.getSuspensionHasta().collectAsState(initial = null)
+                val estatusValidacion by tokenManager.getEstatusValidacion().collectAsState(initial = "pendiente")
                 
                 // Determinar si está bloqueado actualmente
-                val isBlocked = remember(banPermanente, suspensionHasta) {
+                val isBlocked = remember(banPermanente, suspensionHasta, estatusValidacion) {
                     if (banPermanente) true
+                    else if (estatusValidacion == "rechazado") true
                     else if (!suspensionHasta.isNullOrBlank()) {
-                        try {
-                            // Comparar fechas si es necesario, o confiar en el backend (el backend borra el campo si ya expiró al consultar perfil)
-                            // Por ahora, si hay un valor, asumimos que sigue activo
-                            true
-                        } catch (e: Exception) { false }
+                        true
                     } else false
                 }
 
@@ -71,7 +69,7 @@ class MainActivity : ComponentActivity() {
                                 if (resp.isSuccessful) {
                                     val p = resp.body()
                                     if (p != null) {
-                                        tokenManager.updateSanctionStatus(p.banPermanente, p.suspensionHasta)
+                                        tokenManager.updateSanctionStatus(p.banPermanente, p.suspensionHasta, p.estatusValidacion)
                                     }
                                 }
                             } catch (e: Exception) {}
@@ -99,7 +97,10 @@ class MainActivity : ComponentActivity() {
                                 onItemClick = { route ->
                                     if (isBlocked && route != Screen.Profile.route) {
                                         // No permitir navegar si está bloqueado, excepto a perfil
-                                        android.widget.Toast.makeText(context, "Tu cuenta está suspendida. Solo puedes acceder a tu perfil.", android.widget.Toast.LENGTH_SHORT).show()
+                                        val msg = if (estatusValidacion == "rechazado") 
+                                            "Tu cuenta fue rechazada por el administrador. Solo puedes acceder a tu perfil."
+                                        else "Tu cuenta está suspendida. Solo puedes acceder a tu perfil."
+                                        android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
                                     } else {
                                         navController.navigate(route) {
                                             popUpTo(Screen.Home.route) { saveState = true }
@@ -142,7 +143,11 @@ class MainActivity : ComponentActivity() {
                                     )
                                     Spacer(modifier = Modifier.height(24.dp))
                                     Text(
-                                        text = if (banPermanente) "CUENTA SUSPENDIDA PERMANENTEMENTE" else "CUENTA SUSPENDIDA TEMPORALMENTE",
+                                        text = when {
+                                            banPermanente -> "CUENTA SUSPENDIDA PERMANENTEMENTE"
+                                            estatusValidacion == "rechazado" -> "CUENTA RECHAZADA"
+                                            else -> "CUENTA SUSPENDIDA TEMPORALMENTE"
+                                        },
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 18.sp,
@@ -150,8 +155,11 @@ class MainActivity : ComponentActivity() {
                                     )
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Text(
-                                        text = if (banPermanente) "Has sido expulsado de la comunidad por incumplir las normas."
-                                               else "Tu acceso está restringido hasta: $suspensionHasta",
+                                        text = when {
+                                            banPermanente -> "Has sido expulsado de la comunidad por incumplir las normas."
+                                            estatusValidacion == "rechazado" -> "Tu solicitud de registro ha sido rechazada por el administrador. Verifica tus documentos."
+                                            else -> "Tu acceso está restringido hasta: $suspensionHasta"
+                                        },
                                         color = Color.LightGray,
                                         fontSize = 14.sp,
                                         textAlign = TextAlign.Center
