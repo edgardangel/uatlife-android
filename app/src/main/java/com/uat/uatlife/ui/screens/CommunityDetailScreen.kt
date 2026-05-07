@@ -61,6 +61,7 @@ fun CommunityDetailScreen(
     var isPostsLoading by remember { mutableStateOf(true) }
     var isMembersLoading by remember { mutableStateOf(true) }
     var showLeaveDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(0) }
     var showCommentsForPostId by remember { mutableStateOf<Int?>(null) }
 
