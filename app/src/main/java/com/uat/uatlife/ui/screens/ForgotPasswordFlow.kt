@@ -138,6 +138,12 @@ fun ForgotPasswordScreen(
                     Text("Enviar Código", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            TextButton(onClick = onBack) {
+                Text("Volver al Inicio de Sesión", color = UATBlueDark, fontWeight = FontWeight.Medium)
+            }
         }
     }
 }
