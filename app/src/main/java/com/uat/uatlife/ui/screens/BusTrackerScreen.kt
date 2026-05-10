@@ -62,8 +62,8 @@ fun BusTrackerScreen() {
         position = CameraPosition.builder()
             .target(CU_TAMPICO_CENTER)
             .zoom(15.5f)
-            .bearing(90f) // Rotamos 90 grados para que la entrada quede abajo
-            .tilt(30f)    // Un poco de inclinación para una vista más premium
+            .bearing(270f) // Rotamos 270 grados para que la entrada quede abajo
+            .tilt(30f)    // Mantenemos la inclinación premium
             .build()
     }
     
