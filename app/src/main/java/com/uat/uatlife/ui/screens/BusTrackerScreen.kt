@@ -59,7 +59,12 @@ fun BusTrackerScreen() {
     val context = LocalContext.current
 
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(CU_TAMPICO_CENTER, 15.5f)
+        position = CameraPosition.builder()
+            .target(CU_TAMPICO_CENTER)
+            .zoom(15.5f)
+            .bearing(90f) // Rotamos 90 grados para que la entrada quede abajo
+            .tilt(30f)    // Un poco de inclinación para una vista más premium
+            .build()
     }
     
     var uiSettings by remember { 
